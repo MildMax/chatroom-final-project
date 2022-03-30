@@ -5,6 +5,8 @@ import util.RMIAccess;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
+// data node -> centralized server
+
 /**
  * Defines operations supported by 2 Phase Commit Coordinator
  */

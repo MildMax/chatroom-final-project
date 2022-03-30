@@ -5,12 +5,14 @@ import java.io.Serializable;
 public class ChatroomResponse implements Serializable {
     private String name;
     private String address;
-    private int port;
+    private int tcpPort;
+    private int registryPort;
 
-    public ChatroomResponse(String name, String address, int port) {
+    public ChatroomResponse(String name, String address, int tcpPort, int registryPort) {
         this.name = name;
         this.address = address;
-        this.port = port;
+        this.tcpPort = tcpPort;
+        this.registryPort = registryPort;
     }
 
     public String getName() {
@@ -20,5 +22,9 @@ public class ChatroomResponse implements Serializable {
     public String getAddress() {
         return this.address;
     }
+
+    public int getTcpPort() { return this.tcpPort; }
+
+    public int getRegistryPort() { return this.registryPort; }
 
 }

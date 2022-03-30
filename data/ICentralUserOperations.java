@@ -4,6 +4,8 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.util.List;
 
+// client -> centralized server
+
 public interface ICentralUserOperations extends Remote {
 
     Response registerUser(String username, String password) throws RemoteException;

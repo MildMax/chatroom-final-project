@@ -3,6 +3,8 @@ package data;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
+// centralized server -> data node
+
 /**
  * Defines operations supported by 2 Phase Commit Participant
  */
