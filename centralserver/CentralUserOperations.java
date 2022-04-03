@@ -71,10 +71,10 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
             // iterate through data nodes to attempt login
             // in the event one node crashes, another node may have the login info necessary
             boolean success = false;
+            Response response = null;
             for (RMIAccess<IDataOperations> nodeAccessor : this.dataNodesOperations) {
-                Response response = null;
                 try {
-                    response = nodeAccessor.getAccess().login(username, password);
+                    response = nodeAccessor.getAccess().verifyUser(username, password);
                 } catch (NotBoundException e) {
                     Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
                             "Unable to contact data node at \"%s:%d\"; skipping",
@@ -97,8 +97,9 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                 return new Response(ResponseStatus.OK, "success");
             } else {
                 Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                        "Unable to log in user \"%s\"",
-                        username
+                        "Unable to log in user \"%s\" with message: \"%s\"",
+                        username,
+                        response.getMessage()
                 ));
                 return new Response(ResponseStatus.FAIL, "Login failed");
             }

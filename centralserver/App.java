@@ -40,7 +40,8 @@ public class App {
                 this.dataNodesOperations,
                 this.dataNodeOperationsLock,
                 this.dataNodesParticipants,
-                this.dataNodeParticipantsLock);
+                this.dataNodeParticipantsLock,
+                serverInfo);
         centralOperationsRegistry.rebind("ICentralOperations", centralOperationsEngine);
 
         // start registry for Chatroom -> Central Server communication
@@ -57,7 +58,12 @@ public class App {
                 this.dataNodeOperationsLock,
                 this.dataNodesParticipants,
                 this.dataNodeParticipantsLock);
-        centralUserOperationsRegistry.rebind("ICentralUserOperations", centralChatroomOperationsEngine);
+        centralUserOperationsRegistry.rebind("ICentralUserOperations", centralUserOperationsEngine);
+
+        // start registry for Data -> Central Coordinator operations
+        Registry centralCoordinatorRegistry = LocateRegistry.createRegistry(serverInfo.getCoordinatorPort());
+        ICentralCoordinator coordinatorEngine = new CentralCoordinator();
+        centralCoordinatorRegistry.rebind("ICentralCoordinator", coordinatorEngine);
 
         System.out.println("Central Server is ready");
 
@@ -111,26 +117,16 @@ public class App {
             ));
         }
 
-        return new ServerInfo(registerPort, chatroomPort, userPort);
-    }
-
-    static class ServerInfo {
-        private final int registerPort;
-        private final int chatroomPort;
-        private final int userPort;
-
-        ServerInfo(int registerPort, int chatroomPort, int userPort) {
-            this.registerPort = registerPort;
-            this.chatroomPort = chatroomPort;
-            this.userPort = userPort;
+        int coordinatorPort;
+        try {
+            coordinatorPort = Integer.parseInt(args[3]);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(ThreadSafeStringFormatter.format(
+                    "Received illegal <coordinator port> value, must be int, received \"%s\"",
+                    args[3]
+            ));
         }
 
-        int getRegisterPort() { return this.registerPort; }
-
-        int getChatroomPort() { return this.chatroomPort; }
-
-        int getUserPort() { return this.userPort; }
+        return new ServerInfo(registerPort, chatroomPort, userPort, coordinatorPort);
     }
-
-
 }
