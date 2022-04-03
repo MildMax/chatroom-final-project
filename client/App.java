@@ -47,6 +47,13 @@ public class App {
 
     public static ServerInfo parseCommandLineArgs(String[] args) throws IllegalArgumentException {
 
+        if (args.length != 2) {
+            throw new IllegalArgumentException(ThreadSafeStringFormatter.format(
+                    "Expected 2 arguments <central hostname> <central port>, received \"%d\" arguments",
+                    args.length
+            ));
+        }
+
         int centralPort;
         try {
             centralPort = Integer.parseInt(args[1]);

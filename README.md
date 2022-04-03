@@ -46,3 +46,15 @@ java -cp . chatserver.App B localhost 1111 localhost 5555 5556 5557
 java -cp . chatserver.App C localhost 1111 localhost 6666 6667 6668
 java -cp . chatserver.App D localhost 1111 localhost 7777 7778 7779
 ```
+
+## Starting the client
+
+```
+java -cp . client.App <central hostname> <central port>
+```
+
+example for 1 client:
+
+```
+java -cp . client.App localhost 1113
+```

@@ -78,6 +78,13 @@ public class App {
 
     public static ServerInfo parseCommandLineArguments(String[] args) throws IllegalArgumentException {
 
+        if (args.length != 6) {
+            throw new IllegalArgumentException(ThreadSafeStringFormatter.format(
+                    "Expected 6 arguments <id> <central hostname> <register port> <hostname> <operations port> <participant port>, received \"%d\" arguments",
+                    args.length
+            ));
+        }
+
         int centralServerPort;
         try {
             centralServerPort = Integer.parseInt(args[2]);

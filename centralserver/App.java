@@ -72,7 +72,13 @@ public class App {
     public static void main(String[] args) {
 
         Logger.serverLoggerSetup("CentralServer");
-        ServerInfo serverInfo = App.parseCommandLineArguments(args);
+        ServerInfo serverInfo = null;
+        try {
+            serverInfo = App.parseCommandLineArguments(args);
+        } catch (IllegalArgumentException e) {
+            Logger.writeErrorToLog(e.getMessage());
+            return;
+        }
 
         App app = new App();
         try {
@@ -85,7 +91,14 @@ public class App {
         }
     }
 
-    public static ServerInfo parseCommandLineArguments(String[] args) {
+    public static ServerInfo parseCommandLineArguments(String[] args) throws IllegalArgumentException {
+
+        if (args.length != 4) {
+            throw new IllegalArgumentException(ThreadSafeStringFormatter.format(
+                    "Expected 4 arguments <register port> <chatroom port> <user port> <coordinator port>, received \"%d\" arguments",
+                    args.length
+            ));
+        }
 
         int registerPort;
         try {
