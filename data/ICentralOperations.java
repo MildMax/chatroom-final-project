@@ -8,6 +8,7 @@ import java.rmi.RemoteException;
 
 public interface ICentralOperations extends Remote {
 
-    void register(ServerType serverType, String hostname, int port) throws RemoteException;
+    void registerDataNode(String hostname, int dataOperationsPort, int dataParticipantPort) throws RemoteException;
+    void registerChatNode(String hostname, int port) throws RemoteException;
 
 }

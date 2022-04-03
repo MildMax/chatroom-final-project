@@ -1,8 +1,6 @@
 package centralserver;
 
-import data.ICentralOperations;
-import data.IChatroomOperations;
-import data.IDataOperations;
+import data.*;
 import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
@@ -19,21 +17,38 @@ public class App {
 
     private List<RMIAccess<IChatroomOperations>> chatroomNodes;
     private Object chatroomNodeLock;
-    private List<RMIAccess<IDataOperations>> dataNodes;
-    private Object dataNodeLock;
+    private List<RMIAccess<IDataOperations>> dataNodesOperations;
+    private Object dataNodeOperationsLock;
+    private List<RMIAccess<IDataParticipant>> dataNodesParticipants;
+    private Object dataNodeParticipantsLock;
 
     public App() {
         this.chatroomNodeLock = new Object();
-        this.dataNodeLock = new Object();
+        this.dataNodeOperationsLock = new Object();
+        this.dataNodeParticipantsLock = new Object();
         this.chatroomNodes = Collections.synchronizedList(new ArrayList<>());
-        this.dataNodes = Collections.synchronizedList(new ArrayList<>());
+        this.dataNodesOperations = Collections.synchronizedList(new ArrayList<>());
+        this.dataNodesParticipants = Collections.synchronizedList(new ArrayList<>());
     }
 
     public void go(ServerInfo serverInfo) throws RemoteException {
         // start registry for Register function
         Registry centralOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getRegisterPort());
-        ICentralOperations centralOperationsEngine = new CentralOperations(this.chatroomNodes, this.chatroomNodeLock, this.dataNodes, this.dataNodeLock);
+        ICentralOperations centralOperationsEngine = new CentralOperations(
+                this.chatroomNodes,
+                this.chatroomNodeLock,
+                this.dataNodesOperations,
+                this.dataNodeOperationsLock,
+                this.dataNodesParticipants,
+                this.dataNodeParticipantsLock);
         centralOperationsRegistry.rebind("ICentralOperations", centralOperationsEngine);
+
+        // start registry for Chatroom -> Central Server communication
+        Registry centralChatroomOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getChatroomPort());
+        ICentralChatroomOperations centralChatroomOperationsEngine = new CentralChatroomOperations(this.dataNodesParticipants, this.dataNodeParticipantsLock);
+        centralChatroomOperationsRegistry.rebind("ICentralChatroomOperations", centralChatroomOperationsEngine);
+
+        // start registry for Client -> Central Server communication
 
         System.out.println("Central Server is ready");
 
@@ -53,7 +68,6 @@ public class App {
                     e.getMessage()
             ));
         }
-
     }
 
     public static ServerInfo parseCommandLineArguments(String[] args) {
@@ -67,17 +81,31 @@ public class App {
                     args[0]
             ));
         }
-        return new ServerInfo(registerPort);
+
+        int chatroomPort;
+        try {
+            chatroomPort = Integer.parseInt(args[1]);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(ThreadSafeStringFormatter.format(
+                    "Received illegal <chatroom port> value, must be int, received \"%s\"",
+                    args[1]
+            ));
+        }
+        return new ServerInfo(registerPort, chatroomPort);
     }
 
     static class ServerInfo {
         private final int registerPort;
+        private final int chatroomPort;
 
-        ServerInfo(int registerPort) {
+        ServerInfo(int registerPort, int chatroomPort) {
             this.registerPort = registerPort;
+            this.chatroomPort = chatroomPort;
         }
 
         int getRegisterPort() { return this.registerPort; }
+
+        int getChatroomPort() { return this.chatroomPort; }
     }
 
 
