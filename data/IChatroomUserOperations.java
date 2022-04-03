@@ -7,6 +7,6 @@ import java.rmi.RemoteException;
 
 public interface IChatroomUserOperations extends Remote {
 
-    void chat(String username, String message) throws RemoteException;
+    void chat(String chatroomName, String username, String message) throws RemoteException;
 
 }
