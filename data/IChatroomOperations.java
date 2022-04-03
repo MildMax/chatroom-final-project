@@ -7,8 +7,10 @@ import java.rmi.RemoteException;
 
 public interface IChatroomOperations extends Remote {
 
-    Response createChatroom(String name) throws RemoteException;
+    Response createChatroom(String name, String username) throws RemoteException;
     Response deleteChatroom(String name) throws RemoteException;
     ChatroomDataResponse getChatroomData() throws RemoteException;
+    ChatroomListResponse getChatrooms() throws RemoteException;
+    ChatroomUserResponse getChatroom(String name) throws RemoteException;
 
 }

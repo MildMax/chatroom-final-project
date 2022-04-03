@@ -2,17 +2,22 @@ package data;
 
 import java.io.Serializable;
 
-public class ChatroomResponse implements Serializable {
+public class ChatroomResponse extends Response implements Serializable {
     private String name;
     private String address;
     private int tcpPort;
     private int registryPort;
 
-    public ChatroomResponse(String name, String address, int tcpPort, int registryPort) {
+    public ChatroomResponse(ResponseStatus status, String message, String name, String address, int tcpPort, int registryPort) {
+        super(status, message);
         this.name = name;
         this.address = address;
         this.tcpPort = tcpPort;
         this.registryPort = registryPort;
+    }
+
+    public ChatroomResponse(ResponseStatus status, String message) {
+        super(status, message);
     }
 
     public String getName() {

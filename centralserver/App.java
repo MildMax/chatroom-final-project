@@ -49,6 +49,15 @@ public class App {
         centralChatroomOperationsRegistry.rebind("ICentralChatroomOperations", centralChatroomOperationsEngine);
 
         // start registry for Client -> Central Server communication
+        Registry centralUserOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getUserPort());
+        ICentralUserOperations centralUserOperationsEngine = new CentralUserOperations(
+                this.chatroomNodes,
+                this.chatroomNodeLock,
+                this.dataNodesOperations,
+                this.dataNodeOperationsLock,
+                this.dataNodesParticipants,
+                this.dataNodeParticipantsLock);
+        centralUserOperationsRegistry.rebind("ICentralUserOperations", centralChatroomOperationsEngine);
 
         System.out.println("Central Server is ready");
 
@@ -91,21 +100,36 @@ public class App {
                     args[1]
             ));
         }
-        return new ServerInfo(registerPort, chatroomPort);
+
+        int userPort;
+        try {
+            userPort = Integer.parseInt(args[2]);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(ThreadSafeStringFormatter.format(
+                    "Received illegal <user port> value, must be int, received \"%s\"",
+                    args[2]
+            ));
+        }
+
+        return new ServerInfo(registerPort, chatroomPort, userPort);
     }
 
     static class ServerInfo {
         private final int registerPort;
         private final int chatroomPort;
+        private final int userPort;
 
-        ServerInfo(int registerPort, int chatroomPort) {
+        ServerInfo(int registerPort, int chatroomPort, int userPort) {
             this.registerPort = registerPort;
             this.chatroomPort = chatroomPort;
+            this.userPort = userPort;
         }
 
         int getRegisterPort() { return this.registerPort; }
 
         int getChatroomPort() { return this.chatroomPort; }
+
+        int getUserPort() { return this.userPort; }
     }
 
 
