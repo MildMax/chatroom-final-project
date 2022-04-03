@@ -19,6 +19,7 @@ public class App {
 
         // central server accessor can be used to retrieve all information about available chatrooms, servers
         // ports, etc
+        // this is a sample call to ensure the components are connecting
         centralServerAccessor.getAccess().login("sampleusername", "samplepassword");
     }
 
