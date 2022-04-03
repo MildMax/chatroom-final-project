@@ -45,6 +45,11 @@ public class App {
         userRegistry.rebind("IChatroomUserOperations", userOperationsEngine);
 
         // start TCP ports here for receiving client tcp connections for subs, likely in a new thread that can continually wait for new connections
+
+        System.out.println(ThreadSafeStringFormatter.format(
+                "Chat Server %s is ready",
+                serverInfo.getId()
+        ));
     }
 
     public static void main(String[] args) {
