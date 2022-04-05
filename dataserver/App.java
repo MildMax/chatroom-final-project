@@ -8,6 +8,7 @@ import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
+import java.io.File;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -44,7 +45,7 @@ public class App {
 
         // start the Data Participant registry
         Registry participantRegistry = LocateRegistry.createRegistry(serverInfo.getParticipantPort());
-        IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort());
+        IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId());
         participantRegistry.rebind("IDataParticipant", participantEngine);
 
         System.out.println(ThreadSafeStringFormatter.format(
@@ -65,7 +66,9 @@ public class App {
 
         Logger.serverLoggerSetup(ThreadSafeStringFormatter.format("DataNode%s", serverInfo.getId()));
         
-        // TODO CREATE DIRECTORY HERE
+        // Create a directory for each server based on it's name 
+        String fileDir = "files_" + serverInfo.getId() + "/";
+        new File(fileDir).mkdir();
         
         App app = new App();
         try {

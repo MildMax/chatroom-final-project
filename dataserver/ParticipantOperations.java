@@ -11,10 +11,12 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 
     private final String coordinatorHostname;
     private final int coordinatorPort;
+    private final String serverId;
 
-    public ParticipantOperations(String coordinatorHostname, int coordinatorPort) throws RemoteException {
+    public ParticipantOperations(String coordinatorHostname, int coordinatorPort, String serverId) throws RemoteException {
         this.coordinatorHostname = coordinatorHostname;
         this.coordinatorPort = coordinatorPort;
+        this.serverId = serverId;
     }
 
     @Override
