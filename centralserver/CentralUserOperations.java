@@ -40,7 +40,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         boolean success = false;
         String errorMessage = "";
         synchronized (dataNodeParticipantsLock) {
-            // do 2pc here for registering a user
+            // TODO do 2pc here for registering a user
             // if there's an error, create a string for errorMessage to send back to the client
 
         }
@@ -132,6 +132,9 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 
     @Override
     public ChatroomResponse createChatroom(String chatroomName, String username) throws RemoteException {
+    	// 2pc to add chatroom
+    	
+    	
         return CentralUserOperations.innerCreateChatroom(chatroomName, username, this.chatroomNodeLock, this.chatroomNodes);
     }
 
