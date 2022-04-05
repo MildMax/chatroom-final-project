@@ -40,6 +40,12 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         boolean success = false;
         String errorMessage = "";
         synchronized (dataNodeParticipantsLock) {
+        	if (username.contains(":") || password.contains(":")) {
+        		errorMessage = "You cannot have a username or password that contains \":\"";
+        	}
+        	else {
+        		Transaction t = new Transaction(Operations.CREATEUSER, username, password);
+        	}
             // TODO do 2pc here for registering a user
             // if there's an error, create a string for errorMessage to send back to the client
 

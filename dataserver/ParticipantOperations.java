@@ -3,6 +3,7 @@ package dataserver;
 import data.Ack;
 import data.IDataParticipant;
 import data.Transaction;
+import util.RMIAccess;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -48,7 +49,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     }
 
     @Override
-    public void doCommit(Transaction t) throws RemoteException {
+    public void doCommit(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException {
     	// Write to physical file (call have committed) (only if transaction op is create chatroom)
     	switch (t.getOp()) {
     		case CREATEUSER:

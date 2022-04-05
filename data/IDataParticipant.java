@@ -3,6 +3,8 @@ package data;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
+import util.RMIAccess;
+
 // centralized server -> data node
 
 /**
@@ -23,9 +25,10 @@ public interface IDataParticipant extends Remote {
      * Commits a transaction to the local Participant's KeyValue store
      *
      * @param t transaction to commit
+     * @param p this data nodes RMIAccess interface
      * @throws RemoteException if there is an error during RPC communication
      */
-    void doCommit(Transaction t) throws RemoteException;
+    void doCommit(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException;
 
     /**
      * Aborts commit on a transaction on the local Participant's KeyValue store
