@@ -19,16 +19,19 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 
     @Override
     public Ack canCommit(Transaction t) throws RemoteException {
+    	// check if current node is commiting on same key (hashmap of transactions) remove on do or abort
         return null;
+        
     }
 
     @Override
     public void doCommit(Transaction t) throws RemoteException {
-
+    	// Write to physical file (call havecommited) (only if transaction op is create chatroom)
     }
 
     @Override
     public void doAbort(Transaction t) throws RemoteException {
+    	// check if index lines up before removing (if ti matches)
 
     }
 }

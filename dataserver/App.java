@@ -35,7 +35,7 @@ public class App {
         // register response contains the Coordinator port for the Central Server
         RegisterResponse registerResponse = centralServer.getAccess().registerDataNode(serverInfo.getHostname(), serverInfo.getOperationsPort(), serverInfo.getParticipantPort());
 
-        // populate the user map here
+        // TODO populate the user map here
 
         // start the Data Operations registry
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());
@@ -64,7 +64,9 @@ public class App {
         }
 
         Logger.serverLoggerSetup(ThreadSafeStringFormatter.format("DataNode%s", serverInfo.getId()));
-
+        
+        // TODO CREATE DIRECTORY HERE
+        
         App app = new App();
         try {
             app.go(serverInfo);

@@ -25,6 +25,9 @@ public class CentralChatroomOperations extends UnicastRemoteObject implements IC
 
 
         synchronized (dataNodeParticipantsLock) {
+        	// TODO cancommit from here for all of the nodes (responds yes or no) 2only one key modified at a time
+        	// if no retry or abort 
+        	// if yes do commit 
             // do 2 pc here for chat messages
             // write to text file for the chatroom
         }
