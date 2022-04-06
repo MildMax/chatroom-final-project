@@ -4,7 +4,9 @@ import data.Ack;
 import data.ICentralCoordinator;
 import data.IDataParticipant;
 import data.Transaction;
+import util.Logger;
 import util.RMIAccess;
+import util.ThreadSafeStringFormatter;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -65,14 +67,19 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 				File chatroom = new File(dir.resolve(t.getKey()).toString() + ".txt");
 				if (chatroom.delete()) {
 					//TODO what to log here? 
-					System.out.println(String.format("Deleted file %s", t.getKey()));
+					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+							"Deleted file %s", 
+							t.getKey()
+				));
 				} else {
-					System.err.format("Can't delete file");
+					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+							"Can't delete file %s", 
+							t.getKey()
+							));
 				}
     			break;
     		case LOGMESSAGE:
     			writeFile(t.getKey() + ".txt", t.getValue());
-    			System.out.println(coordinatorPort);
     			break;
     		default:
     			// TODO just log an error?
@@ -85,7 +92,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 				coord = coordinator.getAccess();
 				coord.haveCommitted(t, p);
 			} catch (RemoteException | NotBoundException e) {
-				// TODO Auto-generated catch block
+				// TODO What to log here?
 				e.printStackTrace();
 			}
     	
