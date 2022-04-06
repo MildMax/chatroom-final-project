@@ -10,7 +10,6 @@ import util.ThreadSafeStringFormatter;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.rmi.NotBoundException;
@@ -67,7 +66,7 @@ public class App {
         Registry participantRegistry = LocateRegistry.createRegistry(serverInfo.getParticipantPort());
         IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId());
         participantRegistry.rebind("IDataParticipant", participantEngine);
-
+        
         System.out.println(ThreadSafeStringFormatter.format(
                 "Data server %s is ready",
                 serverInfo.getId()

@@ -1,6 +1,7 @@
 package dataserver;
 
 import data.Ack;
+import data.ICentralCoordinator;
 import data.IDataParticipant;
 import data.Transaction;
 import util.RMIAccess;
@@ -11,6 +12,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.concurrent.ConcurrentHashMap;
@@ -76,8 +78,16 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     			// TODO just log an error?
     			break;
     	}
+    	RMIAccess<ICentralCoordinator> coordinator = new RMIAccess<>(coordinatorHostname, coordinatorPort, "ICentralCoordinator");
     	
-    	// TODO Contact central coordinator (get help)
+    		ICentralCoordinator coord;
+			try {
+				coord = coordinator.getAccess();
+				coord.haveCommitted(t, p);
+			} catch (RemoteException | NotBoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
     	
     	transactionMap.remove(t.getTransactionIndex());
     }
