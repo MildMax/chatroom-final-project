@@ -37,13 +37,86 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     @Override
     public Response registerUser(String username, String password) throws RemoteException {
 
+    	// TODO what to do if a user already exists?  
         boolean success = false;
         String errorMessage = "";
-        synchronized (dataNodeParticipantsLock) {
-            // TODO do 2pc here for registering a user
+        boolean userExists = false;
+        RMIAccess<IDataOperations> nodeAccessor = this.dataNodesOperations.get(0);;
+		try {
+			userExists = nodeAccessor.getAccess().userExists(username);
+		} catch (RemoteException | NotBoundException e1) {
+			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                    "Unable to contact data node at \"%s:%d\"; skipping",
+                    nodeAccessor.getHostname(),
+                    nodeAccessor.getPort()
+            ));
+		}
+        // Don't allow users to have a : in the name or password!
+        if (username.contains(":") || password.contains(":")) {
+    		errorMessage = "You cannot have a username or password that contains \":\"";
+    		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                    "Tried to create a username or password with \":\" %s, %s ",
+                    username, password
+            ));
+    		return new Response(ResponseStatus.FAIL, errorMessage);
+    	} else if (!userExists) {
+    		errorMessage = "User already exists";
+    		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                    errorMessage,
+                    username
+            ));
+    		return new Response(ResponseStatus.FAIL, errorMessage);
+    	}
+        
+        else {
+    		Transaction t = new Transaction(Operations.CREATEUSER, username, password);
+    	    
+        	int numDataNodes = dataNodesParticipants.size();
+        	int votesYes = 0;
+        	// TODO maybe do a retry?
             // if there's an error, create a string for errorMessage to send back to the client
-
-        }
+            synchronized (dataNodeParticipantsLock) {
+            	try {
+    	        	for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+    	        		IDataParticipant dataNode;
+    					dataNode = participant.getAccess();
+    					
+    	        		if (dataNode == null) {
+    	        			errorMessage = "Something went wrong, please try again";
+    	            		return new Response(ResponseStatus.FAIL, errorMessage);
+    	        		}
+    	        		// Make sure everyone votes yes.
+    	        		if (dataNode.canCommit(t) == Ack.YES) {
+    	        			votesYes++;
+    	        		} else {
+    	        			// If we get a no or NA vote, just stop looping
+    	        			errorMessage = "Please try again";
+    	        			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+    	                            "There was not a consensus among data nodes for creating user %s",
+    	                            username
+    	                    ));
+    	        			break;
+    	        		}
+    	        	}
+    	        	
+    	        	if (votesYes == numDataNodes) {
+    	        		for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+    	            		IDataParticipant dataNode = participant.getAccess();
+    	            		dataNode.doCommit(t, participant);
+    	        		}
+    	        		success = true;
+    	        	} else {
+    	        		for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+    	            		IDataParticipant dataNode = participant.getAccess();
+    	            		dataNode.doAbort(t);
+    	        		}
+    	        	}
+            	} catch (RemoteException | NotBoundException e) {
+    				// TODO figure out logging here.
+    				e.printStackTrace();
+            	}  
+            }
+    	}
 
         if (success) {
             return new Response(ResponseStatus.OK, "success");

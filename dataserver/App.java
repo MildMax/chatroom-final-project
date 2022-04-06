@@ -8,6 +8,10 @@ import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -36,6 +40,22 @@ public class App {
         RegisterResponse registerResponse = centralServer.getAccess().registerDataNode(serverInfo.getHostname(), serverInfo.getOperationsPort(), serverInfo.getParticipantPort());
 
         // TODO populate the user map here
+        synchronized(userMapLock) {
+        		File users = new File("files_" + serverInfo.getId() + "/users.txt");
+        		// Read from users file
+        		try {
+					BufferedReader br = new BufferedReader(new FileReader(users));
+					String user;
+					while ((user = br.readLine()) != null) {
+						String[] userpass = user.split(":");
+						userMap.put(userpass[0], userpass[1]);
+					}
+					br.close();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+        }
 
         // start the Data Operations registry
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());
@@ -44,9 +64,9 @@ public class App {
 
         // start the Data Participant registry
         Registry participantRegistry = LocateRegistry.createRegistry(serverInfo.getParticipantPort());
-        IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort());
+        IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId());
         participantRegistry.rebind("IDataParticipant", participantEngine);
-
+        
         System.out.println(ThreadSafeStringFormatter.format(
                 "Data server %s is ready",
                 serverInfo.getId()
@@ -65,7 +85,9 @@ public class App {
 
         Logger.serverLoggerSetup(ThreadSafeStringFormatter.format("DataNode%s", serverInfo.getId()));
         
-        // TODO CREATE DIRECTORY HERE
+        // Create a directory for each server based on it's name 
+        String fileDir = "files_" + serverInfo.getId() + "/";
+        new File(fileDir).mkdir();
         
         App app = new App();
         try {
