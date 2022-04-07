@@ -65,6 +65,7 @@ public class App {
 
         Logger.serverLoggerSetup(ThreadSafeStringFormatter.format("DataNode%s", serverInfo.getId()));
 
+
         App app = new App();
         try {
             app.go(serverInfo);

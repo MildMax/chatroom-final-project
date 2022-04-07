@@ -132,6 +132,10 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 
     @Override
     public ChatroomResponse createChatroom(String chatroomName, String username) throws RemoteException {
+        //
+
+        //
+
         return CentralUserOperations.innerCreateChatroom(chatroomName, username, this.chatroomNodeLock, this.chatroomNodes);
     }
 
