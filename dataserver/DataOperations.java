@@ -33,4 +33,9 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
         }
     }
 
+	@Override
+	public boolean userExists(String username) throws RemoteException {
+		return userMap.containsKey(username);
+	}
+
 }
