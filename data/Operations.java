@@ -2,6 +2,6 @@ package data;
 
 public enum Operations {
 
-    CREATEUSER, LOGMESSAGE
+    CREATEUSER, LOGMESSAGE, CREATECHATROOM, DELETECHATROOM
 
 }
