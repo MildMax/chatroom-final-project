@@ -44,6 +44,17 @@ public class App {
                 serverInfo);
         centralOperationsRegistry.rebind("ICentralOperations", centralOperationsEngine);
 
+        // start local thread for node cleanup -- runs on a timer
+        ResourceCleaner cleaner = new ResourceCleaner(
+                this.chatroomNodes,
+                this.chatroomNodeLock,
+                this.dataNodesOperations,
+                this.dataNodeOperationsLock,
+                this.dataNodesParticipants,
+                this.dataNodeParticipantsLock);
+        Thread cleanerThread = new Thread(cleaner);
+        cleanerThread.start();
+
         // start registry for Chatroom -> Central Server communication
         Registry centralChatroomOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getChatroomPort());
         ICentralChatroomOperations centralChatroomOperationsEngine = new CentralChatroomOperations(this.dataNodesParticipants, this.dataNodeParticipantsLock);
@@ -57,7 +68,8 @@ public class App {
                 this.dataNodesOperations,
                 this.dataNodeOperationsLock,
                 this.dataNodesParticipants,
-                this.dataNodeParticipantsLock);
+                this.dataNodeParticipantsLock,
+                cleaner);
         centralUserOperationsRegistry.rebind("ICentralUserOperations", centralUserOperationsEngine);
 
         // start registry for Data -> Central Coordinator operations
