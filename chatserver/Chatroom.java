@@ -20,7 +20,7 @@ public class Chatroom {
 
     public void Subscribe(Socket s) {
         synchronized (subscriberListLock) {
-            // do sub here
+            subscriberList.add(s);
         }
 
     }
