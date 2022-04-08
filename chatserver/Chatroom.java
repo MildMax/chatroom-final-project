@@ -8,13 +8,11 @@ public class Chatroom {
 
     private final List<Socket> subscriberList;
     private final Object subscriberListLock;
-    private final String creatorUsername;
     private final String roomName;
 
-    public Chatroom(String creatorUsername, String roomName) {
+    public Chatroom(String roomName) {
         this.subscriberList = new LinkedList<>();
         this.subscriberListLock = new Object();
-        this.creatorUsername = creatorUsername;
         this.roomName = roomName;
     }
 
@@ -30,10 +28,6 @@ public class Chatroom {
             // do pub here
         }
 
-    }
-
-    public String getCreatorUsername() {
-        return this.creatorUsername;
     }
 
     public int getUserCount() {

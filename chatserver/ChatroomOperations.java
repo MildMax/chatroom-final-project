@@ -22,7 +22,7 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
     }
 
     @Override
-    public Response createChatroom(String name, String username) throws RemoteException {
+    public Response createChatroom(String name) throws RemoteException {
         synchronized (roomListLock) {
             for (String roomName : roomList.keySet()) {
                 if (roomName.compareTo(name) == 0) {
@@ -30,7 +30,7 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
                 }
             }
 
-            roomList.put(name, new Chatroom(username, name));
+            roomList.put(name, new Chatroom(name));
             return new Response(ResponseStatus.OK, "success");
         }
     }
@@ -63,26 +63,6 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
                 chatroomNames.add(roomName);
             }
             return new ChatroomListResponse(chatroomNames);
-        }
-    }
-
-    @Override
-    public ChatroomUserResponse getChatroom(String name) throws RemoteException {
-        synchronized (roomListLock) {
-            Chatroom room = null;
-            for (String roomName : roomList.keySet()) {
-                if (roomName.compareTo(name) == 0) {
-                    room = roomList.get(roomName);
-                    break;
-                }
-            }
-            if (room == null) {
-                throw new RemoteException(ThreadSafeStringFormatter.format(
-                        "Unable to get chatroom data for chatroom \"%s\"",
-                        name
-                ));
-            }
-            return new ChatroomUserResponse(room.getCreatorUsername(), room.getRoomName());
         }
     }
 }
