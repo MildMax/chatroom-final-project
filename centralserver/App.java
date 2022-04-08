@@ -60,6 +60,12 @@ public class App {
         ICentralChatroomOperations centralChatroomOperationsEngine = new CentralChatroomOperations(this.dataNodesParticipants, this.dataNodeParticipantsLock);
         centralChatroomOperationsRegistry.rebind("ICentralChatroomOperations", centralChatroomOperationsEngine);
 
+     // start registry for Data -> Central Coordinator operations
+        Registry centralCoordinatorRegistry = LocateRegistry.createRegistry(serverInfo.getCoordinatorPort());
+        //TODO pass in datanodesparticipants and lock
+        ICentralCoordinator coordinatorEngine = new CentralCoordinator();
+        centralCoordinatorRegistry.rebind("ICentralCoordinator", coordinatorEngine);
+        
         // start registry for Client -> Central Server communication
         Registry centralUserOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getUserPort());
         ICentralUserOperations centralUserOperationsEngine = new CentralUserOperations(
@@ -69,14 +75,11 @@ public class App {
                 this.dataNodeOperationsLock,
                 this.dataNodesParticipants,
                 this.dataNodeParticipantsLock,
-                cleaner);
+                cleaner,
+                serverInfo.getCoordinatorPort());
         centralUserOperationsRegistry.rebind("ICentralUserOperations", centralUserOperationsEngine);
 
-        // start registry for Data -> Central Coordinator operations
-        Registry centralCoordinatorRegistry = LocateRegistry.createRegistry(serverInfo.getCoordinatorPort());
-        //TODO pass in datanodesparticipants and lock
-        ICentralCoordinator coordinatorEngine = new CentralCoordinator();
-        centralCoordinatorRegistry.rebind("ICentralCoordinator", coordinatorEngine);
+        
 
         System.out.println("Central Server is ready");
 

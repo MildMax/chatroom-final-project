@@ -5,6 +5,8 @@ import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -21,6 +23,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     private final Object dataNodeParticipantsLock;
     private final ResourceCleaner cleaner;
 
+    private final int coordinatorPort;
     // const message for existing chatrooms -- used during re-establish connection
     private static final String EXISTING_CHATROOM_MESSAGE = "A chatroom with this name already exists";
 
@@ -30,7 +33,8 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                              Object dataNodeOperationsLock,
                              List<RMIAccess<IDataParticipant>> dataNodesParticipants,
                              Object dataNodeParticipantsLock,
-                             ResourceCleaner cleaner) throws RemoteException {
+                             ResourceCleaner cleaner,
+                             int coordinatorPort) throws RemoteException {
         this.chatroomNodes = chatroomNodes;
         this.chatroomNodeLock = chatroomNodeLock;
         this.dataNodesOperations = dataNodesOperations;
@@ -38,6 +42,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         this.dataNodesParticipants = dataNodesParticipants;
         this.dataNodeParticipantsLock = dataNodeParticipantsLock;
         this.cleaner = cleaner;
+        this.coordinatorPort = coordinatorPort;
     }
 
     @Override
@@ -106,9 +111,53 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     	        	}
     	        	
     	        	if (votesYes == numDataNodes) {
+    	        		Object waitObject = new Object();
     	        		for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
-    	            		IDataParticipant dataNode = participant.getAccess();
-    	            		dataNode.doCommit(t, participant);
+    	        			Thread commitThread = new Thread(new Runnable() {
+    	        				IDataParticipant dataNode = participant.getAccess();
+								@Override
+								public void run() {
+									try {
+										dataNode.doCommit(t, participant);
+									} catch (RemoteException e) {
+										// TODO Auto-generated catch block
+										e.printStackTrace();
+									}
+								}
+    	        			});
+    	            		commitThread.start();
+    	            		String coordinatorHostName = "";
+    	                    try {
+    	            			coordinatorHostName = InetAddress.getLocalHost().getHostName();
+    	            		} catch (UnknownHostException e) {
+    	            			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+   	                                 "Cannot connect coordinator hostname \"%s\"",
+   	                                 coordinatorHostName
+   	                         ));
+    	            		}
+    	                    RMIAccess<ICentralCoordinator> coordinator = new RMIAccess<>(coordinatorHostName, coordinatorPort, "ICentralCoordinator");
+    	                	
+    	            		ICentralCoordinator coord;
+    	            		try {
+    	            			coord = coordinator.getAccess();
+    	            			coord.addWaitCommit(t, waitObject);
+    	            		} catch (RemoteException | NotBoundException e) {
+    	            			 Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+    	                                 "Cannot connect to coordinator at \"%s:%d\"",
+    	                                 coordinatorHostName,
+    	                                 coordinatorPort
+    	                         ));
+	            			};
+    	        		}
+    	        		synchronized(waitObject) {
+    	        			try {
+								waitObject.wait();
+							} catch (InterruptedException e) {
+								Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+   	                                 "Something went wrong with the wait \"%s\"",
+   	                                 e
+   	                         ));
+							}
     	        		}
     	        		success = true;
     	        	} else {
@@ -118,8 +167,12 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     	        		}
     	        	}
             	} catch (RemoteException | NotBoundException e) {
-    				// TODO figure out logging here.
-    				e.printStackTrace();
+            		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                            "Unable to contact data node at \"%s:%d\" \nError: %s",
+                            nodeAccessor.getHostname(),
+                            nodeAccessor.getPort(),
+                            e
+                    ));
             	}  
             }
     	}

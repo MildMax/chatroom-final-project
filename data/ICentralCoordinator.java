@@ -29,5 +29,13 @@ public interface ICentralCoordinator extends Remote {
      * @throws RemoteException if there is an error with RPC communication
      */
     Ack getDecision(Transaction t) throws RemoteException;
+    
+    /**
+     * Adds a wait object and a transaction id to maps for 2pc
+     * 
+     * @param t Transaction
+     * @param waitObject Wait object
+     */
+    void addWaitCommit(Transaction t, Object waitObject);
 
 }

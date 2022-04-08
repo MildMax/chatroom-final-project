@@ -87,14 +87,14 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     	}
     	RMIAccess<ICentralCoordinator> coordinator = new RMIAccess<>(coordinatorHostname, coordinatorPort, "ICentralCoordinator");
     	
-    		ICentralCoordinator coord;
-			try {
-				coord = coordinator.getAccess();
-				coord.haveCommitted(t, p);
-			} catch (RemoteException | NotBoundException e) {
-				// TODO What to log here?
-				e.printStackTrace();
-			}
+		ICentralCoordinator coord;
+		try {
+			coord = coordinator.getAccess();
+			coord.haveCommitted(t, p);
+		} catch (RemoteException | NotBoundException e) {
+			// TODO What to log here?
+			e.printStackTrace();
+		}
     	
     	transactionMap.remove(t.getTransactionIndex());
     }
