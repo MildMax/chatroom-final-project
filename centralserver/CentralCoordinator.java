@@ -90,6 +90,6 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
 		if (!objectMap.containsKey(waitObject)) {
 			objectMap.put(transactionId, waitObject);
 		}
-		commitMap.put(t.getTransactionIndex(), count++);
+		commitMap.put(t.getTransactionIndex(), ++count);
 	}
 }

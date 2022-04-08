@@ -75,8 +75,8 @@ public class App {
                 this.dataNodeOperationsLock,
                 this.dataNodesParticipants,
                 this.dataNodeParticipantsLock,
-                cleaner,
-                serverInfo.getCoordinatorPort());
+                coordinatorEngine,
+                cleaner);
         centralUserOperationsRegistry.rebind("ICentralUserOperations", centralUserOperationsEngine);
 
         
