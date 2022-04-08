@@ -2,7 +2,6 @@ package centralserver;
 
 import data.Ack;
 import data.ICentralChatroomOperations;
-import data.IDataOperations;
 import data.IDataParticipant;
 import data.Operations;
 import data.Transaction;

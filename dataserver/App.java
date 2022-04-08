@@ -88,7 +88,7 @@ public class App {
         // Create a directory for each server based on it's name 
         String fileDir = "files_" + serverInfo.getId() + "/";
         new File(fileDir).mkdir();
-        
+
         App app = new App();
         try {
             app.go(serverInfo);
