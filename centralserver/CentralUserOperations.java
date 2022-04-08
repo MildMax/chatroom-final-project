@@ -19,6 +19,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     private final Object dataNodeOperationsLock;
     private final List<RMIAccess<IDataParticipant>> dataNodesParticipants;
     private final Object dataNodeParticipantsLock;
+    private final ResourceCleaner cleaner;
 
     // const message for existing chatrooms -- used during re-establish connection
     private static final String EXISTING_CHATROOM_MESSAGE = "A chatroom with this name already exists";
@@ -28,13 +29,15 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                              List<RMIAccess<IDataOperations>> dataNodesOperations,
                              Object dataNodeOperationsLock,
                              List<RMIAccess<IDataParticipant>> dataNodesParticipants,
-                             Object dataNodeParticipantsLock) throws RemoteException {
+                             Object dataNodeParticipantsLock,
+                             ResourceCleaner cleaner) throws RemoteException {
         this.chatroomNodes = chatroomNodes;
         this.chatroomNodeLock = chatroomNodeLock;
         this.dataNodesOperations = dataNodesOperations;
         this.dataNodeOperationsLock = dataNodeOperationsLock;
         this.dataNodesParticipants = dataNodesParticipants;
         this.dataNodeParticipantsLock = dataNodeParticipantsLock;
+        this.cleaner = cleaner;
     }
 
     @Override
@@ -268,26 +271,8 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 
     @Override
     public ChatroomResponse reestablishChatroom(String chatroomName, String username) throws RemoteException {
-        synchronized (chatroomNodeLock) {
-            // remove the downed chat server node from the list of nodes
-            List<RMIAccess<IChatroomOperations>> downedChatServers = new LinkedList<>();
-            for (RMIAccess<IChatroomOperations> chatNode : chatroomNodes) {
-                try {
-                    chatNode.getAccess();
-                } catch (NotBoundException e) {
-                    Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                            "Unable to contact chat server node at \"%s:%d\"; removing from list of active chat server nodes",
-                            chatNode.getHostname(),
-                            chatNode.getPort()
-
-                    ));
-                    downedChatServers.add(chatNode);
-                }
-            }
-            for (RMIAccess<IChatroomOperations> chatNode : downedChatServers) {
-                chatroomNodes.remove(chatNode);
-            }
-        }
+        // clean outstanding chatroom nodes since we suspect one is now not working
+        cleaner.cleanChatroomNodes();
         // create new chatroom using existing create chatroom functionality
         ChatroomResponse response = CentralUserOperations.innerCreateChatroom(chatroomName, username, this.chatroomNodeLock, this.chatroomNodes);
         if (response.getStatus() == ResponseStatus.FAIL && response.getMessage().compareTo(CentralUserOperations.EXISTING_CHATROOM_MESSAGE) == 0) {
