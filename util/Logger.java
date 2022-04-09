@@ -78,4 +78,20 @@ public class Logger {
         // format and return date
         return sdf.format(date);
     }
+    
+   
+    /**
+     * takes in current local time and server time after the operation
+     * subracts the two time stammps and returns the round trip time 
+     * @return
+     */
+    private static String rtt() {
+      long localTime = System.currentTimeMillis();
+      Date date = new Date(localTime);
+      SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+      long serverTime = getFormattedTimeInMilli();
+      long rtt = serverTime - sdf.format(date);
+      
+      return rtt;
+    }
 }
