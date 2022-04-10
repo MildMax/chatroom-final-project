@@ -23,7 +23,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     private final Object dataNodeParticipantsLock;
     private final ResourceCleaner cleaner;
 
-    private final ICentralCoordinator coordinator;
+    private final CentralCoordinator coordinator;
     // const message for existing chatrooms -- used during re-establish connection
     private static final String EXISTING_CHATROOM_MESSAGE = "A chatroom with this name already exists";
 
@@ -33,7 +33,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                              Object dataNodeOperationsLock,
                              List<RMIAccess<IDataParticipant>> dataNodesParticipants,
                              Object dataNodeParticipantsLock,
-                             ICentralCoordinator coordinator,
+                             CentralCoordinator coordinator,
                              ResourceCleaner cleaner) throws RemoteException {
         this.chatroomNodes = chatroomNodes;
         this.chatroomNodeLock = chatroomNodeLock;
