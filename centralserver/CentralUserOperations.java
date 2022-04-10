@@ -162,7 +162,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                             "Unable to contact data node at \"%s:%d\" \nError: %s",
                             nodeAccessor.getHostname(),
                             nodeAccessor.getPort(),
-                            e
+                            e.getMessage()
                     ));
             	}  
             }
