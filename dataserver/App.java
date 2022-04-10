@@ -39,7 +39,6 @@ public class App {
         // register response contains the Coordinator port for the Central Server
         RegisterResponse registerResponse = centralServer.getAccess().registerDataNode(serverInfo.getHostname(), serverInfo.getOperationsPort(), serverInfo.getParticipantPort());
 
-        // TODO populate the user map here
         synchronized(userMapLock) {
         		File users = new File("files_" + serverInfo.getId() + "/users.txt");
         		// Read from users file
