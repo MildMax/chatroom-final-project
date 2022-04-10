@@ -79,6 +79,7 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
         return transactionDecisions.get(t.toString());
     }
 
+    // doesn't need to be a part of interface
 	@Override
 	public void addWaitCommit(Transaction t, Object waitObject) {
 		int transactionId = t.getTransactionIndex();
@@ -90,6 +91,7 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
 		if (!objectMap.containsKey(waitObject)) {
 			objectMap.put(transactionId, waitObject);
 		}
+		// should be ++count
 		commitMap.put(t.getTransactionIndex(), count++);
 	}
 }

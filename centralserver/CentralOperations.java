@@ -54,4 +54,11 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
 
         return new RegisterResponse(serverInfo.getChatroomPort());
     }
+
+    @Override
+    public long getServerTime() throws RemoteException {
+        return System.currentTimeMillis();
+    }
+
+
 }

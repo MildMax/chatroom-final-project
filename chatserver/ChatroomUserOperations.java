@@ -9,8 +9,6 @@ import util.ThreadSafeStringFormatter;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 
 public class ChatroomUserOperations extends UnicastRemoteObject implements IChatroomUserOperations {
@@ -44,5 +42,32 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
                 ));
             }
         }
+    }
+
+    @Override
+    public void joinChatroom(String chatroomName, String username) throws RemoteException {
+
+        synchronized (roomListLock) {
+            // initiate join message here
+            // just write "<username> has entered the chat"
+            // use pub for join message
+        }
+
+    }
+
+    @Override
+    public void leaveChatroom(String chatroomName, String username) throws RemoteException {
+
+        synchronized (roomListLock) {
+            // initiate leave message here
+            // just write "<username> has left the chat"
+            // use pub for leave message
+
+            // find a way to associate usernames with sockets
+            // Maybe some kind of Pair class? An associator?
+            // will have to implement on initial chatroom message via TCP connection from client
+            // do later
+        }
+
     }
 }

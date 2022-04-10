@@ -48,8 +48,6 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     	// We didn't find that key, so we are good to proceed.
 		transactionMap.put(transactionKey, t);
 		return Ack.YES;
-
-        
     }
 
     @Override
