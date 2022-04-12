@@ -1,5 +1,6 @@
 package data;
 
+import java.nio.file.Path;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
@@ -31,4 +32,14 @@ public interface IDataOperations extends Remote {
      * @throws RemoteException
      */
     boolean chatroomExists(String chatroom) throws RemoteException;
+    
+    /**
+     * Deletes a chatroom from the map and writes it to file
+     * @param chatroomName
+     * @param dir of file to write to
+     * @return if successful
+     * @throws RemoteException
+     */
+    boolean deleteChatroom(String chatroomName, Path dir) throws RemoteException;
+
 }

@@ -47,6 +47,8 @@ public class App {
         		File users = new File("files_" + serverInfo.getId() + "/users.txt");
         		// Read from users file
         		try {
+        			// Create file if it doesn't exist yet.
+        			users.createNewFile();
 					BufferedReader br = new BufferedReader(new FileReader(users));
 					String user;
 					while ((user = br.readLine()) != null) {
@@ -61,10 +63,12 @@ public class App {
         }
 
         synchronized(channelMapLock) {
-    		File channels = new File("files_" + serverInfo.getId() + "/channels.txt");
-    		// Read from users file
+    		File chatrooms = new File("files_" + serverInfo.getId() + "/chatrooms.txt");
+    		// Read from chatrooms file
     		try {
-				BufferedReader br = new BufferedReader(new FileReader(channels));
+    			// Create file if it doesn't exist yet.
+    			chatrooms.createNewFile();
+				BufferedReader br = new BufferedReader(new FileReader(chatrooms));
 				String channel;
 				while ((channel = br.readLine()) != null) {
 					String[] channeluser = channel.split(":");
@@ -84,7 +88,7 @@ public class App {
 
         // start the Data Participant registry
         Registry participantRegistry = LocateRegistry.createRegistry(serverInfo.getParticipantPort());
-        IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId());
+        IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId(), operationsEngine);
         participantRegistry.rebind("IDataParticipant", participantEngine);
         
         System.out.println(ThreadSafeStringFormatter.format(
