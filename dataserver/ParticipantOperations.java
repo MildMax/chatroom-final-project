@@ -63,13 +63,17 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     		case CREATEUSER:
     			// Usernames and passwords stored in the format username:password 
     			writeFile("users.txt", t.getKey() + ":" + t.getValue());
+    			operationsEngine.createUser(t.getKey(), t.getValue());
     			break;
     		case CREATECHATROOM:
+    			// Chatroom ownership is stored in the format chatroom:user
     			writeFile("chatrooms.txt", t.getKey() + ":" + t.getValue());
+    			operationsEngine.createChatroom(t.getKey(), t.getValue());
     			break;
     		case DELETECHATROOM:
 				File chatroom = new File(dir.resolve(t.getKey()).toString() + ".txt");
-				if (operationsEngine.deleteChatroom(t.getKey(), dir) && chatroom.delete()) {
+				operationsEngine.deleteChatroom(t.getKey(), dir);
+				if (chatroom.delete()) {
 					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
 							"Deleted chatroom %s", 
 							t.getKey()

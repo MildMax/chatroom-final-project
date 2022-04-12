@@ -65,25 +65,43 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 	}
 	
 	@Override
-	public synchronized boolean deleteChatroom(String chatroomName, Path dir) throws RemoteException {
-		chatroomMap.remove(chatroomName);
-		try {
-			// Creates the file if it doesn't exist, if it does exist it will append to the file.
-			FileWriter file = new FileWriter(dir.resolve("chatrooms.txt").toString());
-			BufferedWriter writer = new BufferedWriter(file);
-			for (Map.Entry<String, String> chatroom : chatroomMap.entrySet()) {
-				writer.write(chatroom.getKey() + ":" + chatroom.getValue());
-				writer.newLine(); 
+	public void deleteChatroom(String chatroomName, Path dir) throws RemoteException {
+		synchronized (chatroomMapLock) {
+			chatroomMap.remove(chatroomName);
+			try {
+				// Creates the file if it doesn't exist and will overwrite it each time
+				FileWriter file = new FileWriter(dir.resolve("chatrooms.txt").toString());
+				BufferedWriter writer = new BufferedWriter(file);
+				for (Map.Entry<String, String> chatroom : chatroomMap.entrySet()) {
+					writer.write(chatroom.getKey() + ":" + chatroom.getValue());
+					writer.newLine(); 
+				}
+				writer.close();
+			} catch (IOException e) {
+				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						"Something went very wrong deleting %s", 
+						chatroomName
+						));
 			}
-			writer.close();
-			return true;
-		} catch (IOException e) {
-			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-					"Something went very wrong deleting %s", 
-					chatroomName
-					));
-			return false;
 		}
 	}
+	
+	@Override
+	public void createUser(String username, String password) throws RemoteException {
+		synchronized (userMapLock) {
+			if (!userMap.containsKey(username)) {
+				userMap.put(username, password);
+			}  
+		}
+		
+	}
 
+	@Override
+	public void createChatroom(String chatroomName, String username) throws RemoteException {
+		synchronized(chatroomMapLock) {
+			if (!chatroomMap.containsKey(username)) {
+				chatroomMap.put(chatroomName, username);
+			}  
+		}
+	}
 }

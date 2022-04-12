@@ -37,9 +37,24 @@ public interface IDataOperations extends Remote {
      * Deletes a chatroom from the map and writes it to file
      * @param chatroomName
      * @param dir of file to write to
-     * @return if successful
      * @throws RemoteException
      */
-    boolean deleteChatroom(String chatroomName, Path dir) throws RemoteException;
+    void deleteChatroom(String chatroomName, Path dir) throws RemoteException;
+    
+    /**
+     * Adds a chatroom to the channelmap
+     * @param chatroomName
+     * @param username
+     * @throws RemoteException
+     */
+    void createChatroom(String chatroomName, String username) throws RemoteException;
+    
+    /**
+     * Adds a user to the usermap
+     * @param username the user to add
+     * @param password their password
+     * @throws RemoteException
+     */
+    void createUser(String username, String password) throws RemoteException;
 
 }

@@ -3,7 +3,9 @@ package dataserver;
 import data.ICentralOperations;
 import data.IDataOperations;
 import data.IDataParticipant;
+import data.Operations;
 import data.RegisterResponse;
+import data.Transaction;
 import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
@@ -90,6 +92,11 @@ public class App {
         Registry participantRegistry = LocateRegistry.createRegistry(serverInfo.getParticipantPort());
         IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId(), operationsEngine);
         participantRegistry.rebind("IDataParticipant", participantEngine);
+        
+        Transaction t = new Transaction(Operations.CREATECHATROOM,"hello", "pass");
+        Transaction t1 = new Transaction(Operations.DELETECHATROOM,"hello", "pass");
+        participantEngine.doCommit(t, null);
+        participantEngine.doCommit(t1, null);
         
         System.out.println(ThreadSafeStringFormatter.format(
                 "Data server %s is ready",
