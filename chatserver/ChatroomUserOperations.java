@@ -31,7 +31,8 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
     public void chat(String chatroomName, String username, String message) throws RemoteException {
         synchronized (serverAccessorLock) {
             synchronized (roomListLock) {
-                // do pub here
+                Chatroom chatroom = roomList.get(chatroomName);
+                chatroom.Publish(message);
             }
 
             try {

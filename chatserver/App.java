@@ -1,6 +1,6 @@
 package chatserver;
 
-import data.ICentralOperations;
+import gdata.ICentralOperations;
 import data.IChatroomOperations;
 import data.IChatroomUserOperations;
 import data.RegisterResponse;
@@ -8,6 +8,9 @@ import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -26,7 +29,7 @@ public class App {
         this.roomMapLock = new Object();
     }
 
-    public void go(ServerInfo serverInfo) throws RemoteException, NotBoundException {
+    public void go(ServerInfo serverInfo) throws IOException, NotBoundException {
 
         // register Data node with the central server
         RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(), serverInfo.getCentralServerPort(), "ICentralOperations");
@@ -44,7 +47,21 @@ public class App {
         IChatroomUserOperations userOperationsEngine = new ChatroomUserOperations(this.roomMap, this.roomMapLock, serverInfo, registerResponse.getPort());
         userRegistry.rebind("IChatroomUserOperations", userOperationsEngine);
 
-        // start TCP ports here for receiving client tcp connections for subs, likely in a new thread that can continually wait for new connections
+        // start TCP ports here for receiving client tcp connections for subs,g
+        // likely in a new thread that can continually wait for new connections
+        ServerSocket chatserver = new ServerSocket(serverInfo.getTcpPort());
+
+        while(true){
+            Socket client = chatserver.accept();
+            //Recieve message from client
+            client.
+            //Find chatroom client is looking to join
+
+            //Subscribe client socket to matching chatroom
+
+        }
+
+
 
         System.out.println(ThreadSafeStringFormatter.format(
                 "Chat Server %s is ready",
