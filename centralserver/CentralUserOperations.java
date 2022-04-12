@@ -291,9 +291,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                     chatroomName
             ));
     		return new ChatroomResponse(ResponseStatus.FAIL, errorMessage);
-    	}
-        
-    	else {
+    	} else {
     		Transaction t = new Transaction(Operations.CREATECHATROOM, chatroomName, username);
     	    
         	int numDataNodes = dataNodesParticipants.size();
@@ -420,6 +418,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         int votesYes = 0;
         Response response;
         
+        // Since data is replicated, it doesn't matter which datanode we retrieve from
         RMIAccess<IDataOperations> nodeAccessor = this.dataNodesOperations.get(0);
         
         try {
@@ -438,9 +437,128 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                     errorMessage,
                     chatroomName
             ));
-    		return new ChatroomResponse(ResponseStatus.FAIL, errorMessage);
+    		return new Response(ResponseStatus.FAIL, errorMessage);
+    	} else {
+    		Transaction t = new Transaction(Operations.DELETECHATROOM, chatroomName, username);
+    	    
+        	int numDataNodes = dataNodesParticipants.size();
+        	
+            // if there's an error, create a string for errorMessage to send back to the client
+            synchronized (dataNodeParticipantsLock) {
+            	try {
+            		// Attempt a canCommit
+    	        	for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+    	        		IDataParticipant dataNode;
+    					dataNode = participant.getAccess();
+    					
+    	        		if (dataNode == null) {
+    	        			errorMessage = "Something went wrong, please try again";
+    	            		return new ChatroomResponse(ResponseStatus.FAIL, errorMessage);
+    	        		}
+    	        		// Make sure everyone votes yes.
+    	        		if (dataNode.canCommit(t) == Ack.YES) {
+    	        			votesYes++;
+    	        		} else {
+    	        			// If we get a no or NA vote, just stop looping
+    	        			errorMessage = "Something went wrong, please try again";
+    	        			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+    	                            "There was not a consensus among data nodes for creating chatroom %s",
+    	                            chatroomName
+    	                    ));
+    	        			break;
+    	        		}
+    	        	}
+            	} catch (RemoteException | NotBoundException e) {
+            		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                            "Unable to contact data node at \"%s:%d\" \nError: %s",
+                            nodeAccessor.getHostname(),
+                            nodeAccessor.getPort(),
+                            e.getMessage()
+                    ));
+            		return new ChatroomResponse(ResponseStatus.FAIL, "Something went wrong, please try again");
+            	}  
+            }
+            if (votesYes == numDataNodes) {
+            	// Roll the inner create chatroom THEN doCommit
+            	response = innerDeleteChatroom(chatroomName, username);
+            	
+            	// If we can't advance, 
+            	if (response.getStatus() == ResponseStatus.FAIL) {
+            		// Do abort here 
+            		forceAbort(t);
+            		return response;
+            	}
+            	
+        		Object waitObject = new Object();
+        		for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+        			Thread commitThread;
+					try {
+						commitThread = new Thread(new Runnable() {
+							IDataParticipant dataNode = participant.getAccess();
+							@Override
+							public void run() {
+								try {
+									dataNode.doCommit(t, participant);
+								} catch (RemoteException e) {
+									Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+			                                "Something went wrong starting a thread at %s",
+			                                participant.getHostname()
+			                        ));
+								}
+							}
+						});
+					
+	            		commitThread.start();
+	            		String coordinatorHostName = "";
+	                    try {
+	            			coordinatorHostName = InetAddress.getLocalHost().getHostName();
+	            		} catch (UnknownHostException e) {
+	            			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+	                                "Cannot connect coordinator hostname \"%s\"",
+	                                coordinatorHostName
+	                        ));
+	            			return new ChatroomResponse(ResponseStatus.FAIL, "Something went wrong, please try again");
+	            		}
+	        			coordinator.addWaitCommit(t, waitObject);
+	        			
+					} catch (RemoteException | NotBoundException e1) {
+						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+	                            "Unable to contact data node at \"%s:%d\" \nError: %s",
+	                            nodeAccessor.getHostname(),
+	                            nodeAccessor.getPort(),
+	                            e1.getMessage()
+	                    ));
+						return new ChatroomResponse(ResponseStatus.FAIL, "Something went wrong, please try again");
+					}
+        		}
+        		synchronized(waitObject) {
+        			try {
+						waitObject.wait();
+					} catch (InterruptedException e) {
+						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                "Something went wrong with the wait \"%s\"",
+                                e
+                        ));
+						return new ChatroomResponse(ResponseStatus.FAIL, "Something went wrong, please try again");
+					}
+        		}
+        		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                        "Deleted chatrooom \"%s\" by \"%s\" successfully",
+                        chatroomName, username
+                ));
+        		// Everything went well, return the response.
+        		return response;
+        	} else {
+        		forceAbort(t);
+        		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                        "Unable to delete chatroom \"%s\"",
+                        chatroomName
+                ));
+        		// We did an abort, send a fail message
+        		return new ChatroomResponse(ResponseStatus.FAIL, "Something went wrong, please try again");
+        	}
     	}
-    }
+	}
 
     @Override
     public ChatroomResponse getChatroom(String chatroomName) throws RemoteException {
@@ -618,11 +736,9 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         }
     }
 
-    public Response innderDeleteChatroom(String chatroomName, String username) throws RemoteException {
+    public Response innerDeleteChatroom(String chatroomName, String username) throws RemoteException {
     	synchronized (chatroomNodeLock) {
         	// Make sure that user has chatroom ownership
-          
-            // end useless 
             RMIAccess<IChatroomOperations> accessor = CentralUserOperations.findChatroom(chatroomName, chatroomNodes);
 
             try {
