@@ -2,6 +2,7 @@ package dataserver;
 
 import data.Ack;
 import data.ICentralCoordinator;
+import data.IDataOperations;
 import data.IDataParticipant;
 import data.Transaction;
 import util.Logger;
@@ -24,13 +25,16 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     private final String coordinatorHostname;
     private final int coordinatorPort;
     private final String serverId;
+    private final IDataOperations operationsEngine;
     private final Path dir;
     private ConcurrentHashMap<Integer, Transaction> transactionMap;
 
-    public ParticipantOperations(String coordinatorHostname, int coordinatorPort, String serverId) throws RemoteException {
+    // Silly hack to access channel map which shouldn't even exist here 
+    public ParticipantOperations(String coordinatorHostname, int coordinatorPort, String serverId, IDataOperations operationsEngine) throws RemoteException {
         this.coordinatorHostname = coordinatorHostname;
         this.coordinatorPort = coordinatorPort;
         this.serverId = serverId;
+        this.operationsEngine = operationsEngine;
         dir =  Paths.get("files_" + serverId + "/");
         transactionMap = new ConcurrentHashMap<Integer, Transaction>();
     }
@@ -59,21 +63,24 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     		case CREATEUSER:
     			// Usernames and passwords stored in the format username:password 
     			writeFile("users.txt", t.getKey() + ":" + t.getValue());
+    			operationsEngine.createUser(t.getKey(), t.getValue());
     			break;
     		case CREATECHATROOM:
-    			// Nothing actually needs to be done here, since the first message to a chat room will create the file.
+    			// Chatroom ownership is stored in the format chatroom:user
+    			writeFile("chatrooms.txt", t.getKey() + ":" + t.getValue());
+    			operationsEngine.createChatroom(t.getKey(), t.getValue());
     			break;
     		case DELETECHATROOM:
 				File chatroom = new File(dir.resolve(t.getKey()).toString() + ".txt");
+				operationsEngine.deleteChatroom(t.getKey(), dir);
 				if (chatroom.delete()) {
-					//TODO what to log here? 
 					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-							"Deleted file %s", 
+							"Deleted chatroom %s", 
 							t.getKey()
 				));
 				} else {
 					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-							"Can't delete file %s", 
+							"Can't delete chatroom %s", 
 							t.getKey()
 							));
 				}
@@ -110,7 +117,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     }
 
 	@Override
-	public synchronized void writeFile(String fileName, String data) throws RemoteException {
+	public synchronized boolean writeFile(String fileName, String data) throws RemoteException {
 		try {
 			// Creates the file if it doesn't exist, if it does exist it will append to the file.
 			FileWriter file = new FileWriter(dir.resolve(fileName).toString(), true);
@@ -118,8 +125,13 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 			writer.write(data);
 			writer.newLine();
 			writer.close();
+			return true;
 		} catch (IOException e) {
-			System.err.format("Something went very wrong %s%n", e);
+			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					"Something went very wrong %s", 
+					data
+					));
+			return false;
 		}
 	}
 }

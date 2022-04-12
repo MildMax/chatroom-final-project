@@ -3,7 +3,9 @@ package dataserver;
 import data.ICentralOperations;
 import data.IDataOperations;
 import data.IDataParticipant;
+import data.Operations;
 import data.RegisterResponse;
+import data.Transaction;
 import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
@@ -23,12 +25,16 @@ import java.util.Map;
 public class App {
 
     private final Map<String, String> userMap;
+    private final Map<String, String> channelMap;
     private final Object userMapLock;
+    private final Object channelMapLock;
 
     public App() {
 
         this.userMap = Collections.synchronizedMap(new HashMap<>());
+        this.channelMap = Collections.synchronizedMap(new HashMap<>());
         this.userMapLock = new Object();
+        this.channelMapLock = new Object();
     }
 
     public void go(ServerInfo serverInfo) throws RemoteException, NotBoundException {
@@ -43,6 +49,8 @@ public class App {
         		File users = new File("files_" + serverInfo.getId() + "/users.txt");
         		// Read from users file
         		try {
+        			// Create file if it doesn't exist yet.
+        			users.createNewFile();
 					BufferedReader br = new BufferedReader(new FileReader(users));
 					String user;
 					while ((user = br.readLine()) != null) {
@@ -56,15 +64,39 @@ public class App {
 				}
         }
 
+        synchronized(channelMapLock) {
+    		File chatrooms = new File("files_" + serverInfo.getId() + "/chatrooms.txt");
+    		// Read from chatrooms file
+    		try {
+    			// Create file if it doesn't exist yet.
+    			chatrooms.createNewFile();
+				BufferedReader br = new BufferedReader(new FileReader(chatrooms));
+				String channel;
+				while ((channel = br.readLine()) != null) {
+					String[] channeluser = channel.split(":");
+					channelMap.put(channeluser[0], channeluser[1]);
+				}
+				br.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        }
+        
         // start the Data Operations registry
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());
-        IDataOperations operationsEngine = new DataOperations(this.userMap, this.userMapLock);
+        IDataOperations operationsEngine = new DataOperations(this.userMap, this.userMapLock, this.channelMap, this.channelMapLock);
         operationsRegistry.rebind("IDataOperations", operationsEngine);
 
         // start the Data Participant registry
         Registry participantRegistry = LocateRegistry.createRegistry(serverInfo.getParticipantPort());
-        IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId());
+        IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId(), operationsEngine);
         participantRegistry.rebind("IDataParticipant", participantEngine);
+        
+        Transaction t = new Transaction(Operations.CREATECHATROOM,"hello", "pass");
+        Transaction t1 = new Transaction(Operations.DELETECHATROOM,"hello", "pass");
+        participantEngine.doCommit(t, null);
+        participantEngine.doCommit(t1, null);
         
         System.out.println(ThreadSafeStringFormatter.format(
                 "Data server %s is ready",
