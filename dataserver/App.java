@@ -23,12 +23,16 @@ import java.util.Map;
 public class App {
 
     private final Map<String, String> userMap;
+    private final Map<String, String> channelMap;
     private final Object userMapLock;
+    private final Object channelMapLock;
 
     public App() {
 
         this.userMap = Collections.synchronizedMap(new HashMap<>());
+        this.channelMap = Collections.synchronizedMap(new HashMap<>());
         this.userMapLock = new Object();
+        this.channelMapLock = new Object();
     }
 
     public void go(ServerInfo serverInfo) throws RemoteException, NotBoundException {
@@ -56,9 +60,26 @@ public class App {
 				}
         }
 
+        synchronized(channelMapLock) {
+    		File channels = new File("files_" + serverInfo.getId() + "/channels.txt");
+    		// Read from users file
+    		try {
+				BufferedReader br = new BufferedReader(new FileReader(channels));
+				String channel;
+				while ((channel = br.readLine()) != null) {
+					String[] channeluser = channel.split(":");
+					channelMap.put(channeluser[0], channeluser[1]);
+				}
+				br.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+        }
+        
         // start the Data Operations registry
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());
-        IDataOperations operationsEngine = new DataOperations(this.userMap, this.userMapLock);
+        IDataOperations operationsEngine = new DataOperations(this.userMap, this.userMapLock, this.channelMap, this.channelMapLock);
         operationsRegistry.rebind("IDataOperations", operationsEngine);
 
         // start the Data Participant registry

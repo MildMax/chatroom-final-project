@@ -11,10 +11,14 @@ import java.util.Map;
 public class DataOperations extends UnicastRemoteObject implements IDataOperations {
 
     private final Map<String, String> userMap;
+    private final Map<String, String> chatroomMap;
+    private final Object chatroomMapLock;
     private final Object userMapLock;
 
-    public DataOperations(Map<String, String> userMap, Object userMapLock) throws RemoteException {
+    public DataOperations(Map<String, String> userMap, Object userMapLock, Map<String, String> chatroomMap, Object channelMapLock) throws RemoteException {
         this.userMap = userMap;
+		this.chatroomMap = chatroomMap;
+		this.chatroomMapLock = channelMapLock;
         this.userMapLock = userMapLock;
     }
 
@@ -32,10 +36,26 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
             return new Response(ResponseStatus.OK, "success");
         }
     }
+    
+    @Override
+    public Response verifyOwnership(String chatroomName, String username) throws RemoteException {
+    	synchronized (chatroomMapLock) {
+            if (chatroomMap.get(chatroomName).compareTo(username) != 0) {
+                return new Response(ResponseStatus.FAIL, "You are not the owner of this chatroom");
+            }
+
+            return new Response(ResponseStatus.OK, "success");
+        }
+    }
 
 	@Override
 	public boolean userExists(String username) throws RemoteException {
 		return userMap.containsKey(username);
+	}
+	
+	@Override
+	public boolean chatroomExists(String chatroom) throws RemoteException {
+		return chatroomMap.containsKey(chatroom);
 	}
 
 }
