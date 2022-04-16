@@ -3,7 +3,13 @@ package dataserver;
 import data.IDataOperations;
 import data.Response;
 import data.ResponseStatus;
+import util.Logger;
+import util.ThreadSafeStringFormatter;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Map;
@@ -11,10 +17,14 @@ import java.util.Map;
 public class DataOperations extends UnicastRemoteObject implements IDataOperations {
 
     private final Map<String, String> userMap;
+    private final Map<String, String> chatroomMap;
+    private final Object chatroomMapLock;
     private final Object userMapLock;
 
-    public DataOperations(Map<String, String> userMap, Object userMapLock) throws RemoteException {
+    public DataOperations(Map<String, String> userMap, Object userMapLock, Map<String, String> chatroomMap, Object channelMapLock) throws RemoteException {
         this.userMap = userMap;
+		this.chatroomMap = chatroomMap;
+		this.chatroomMapLock = channelMapLock;
         this.userMapLock = userMapLock;
     }
 
@@ -32,10 +42,66 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
             return new Response(ResponseStatus.OK, "success");
         }
     }
+    
+    @Override
+    public Response verifyOwnership(String chatroomName, String username) throws RemoteException {
+    	synchronized (chatroomMapLock) {
+            if (chatroomMap.get(chatroomName).compareTo(username) != 0) {
+                return new Response(ResponseStatus.FAIL, "You are not the owner of this chatroom");
+            }
+
+            return new Response(ResponseStatus.OK, "success");
+        }
+    }
 
 	@Override
 	public boolean userExists(String username) throws RemoteException {
 		return userMap.containsKey(username);
 	}
+	
+	@Override
+	public boolean chatroomExists(String chatroom) throws RemoteException {
+		return chatroomMap.containsKey(chatroom);
+	}
+	
+	@Override
+	public void deleteChatroom(String chatroomName, Path dir) throws RemoteException {
+		synchronized (chatroomMapLock) {
+			chatroomMap.remove(chatroomName);
+			try {
+				// Creates the file if it doesn't exist and will overwrite it each time
+				FileWriter file = new FileWriter(dir.resolve("chatrooms.txt").toString());
+				BufferedWriter writer = new BufferedWriter(file);
+				for (Map.Entry<String, String> chatroom : chatroomMap.entrySet()) {
+					writer.write(chatroom.getKey() + ":" + chatroom.getValue());
+					writer.newLine(); 
+				}
+				writer.close();
+			} catch (IOException e) {
+				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						"Something went very wrong deleting %s", 
+						chatroomName
+						));
+			}
+		}
+	}
+	
+	@Override
+	public void createUser(String username, String password) throws RemoteException {
+		synchronized (userMapLock) {
+			if (!userMap.containsKey(username)) {
+				userMap.put(username, password);
+			}  
+		}
+		
+	}
 
+	@Override
+	public void createChatroom(String chatroomName, String username) throws RemoteException {
+		synchronized(chatroomMapLock) {
+			if (!chatroomMap.containsKey(username)) {
+				chatroomMap.put(chatroomName, username);
+			}  
+		}
+	}
 }

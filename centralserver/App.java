@@ -62,8 +62,7 @@ public class App {
 
      // start registry for Data -> Central Coordinator operations
         Registry centralCoordinatorRegistry = LocateRegistry.createRegistry(serverInfo.getCoordinatorPort());
-        //TODO pass in datanodesparticipants and lock
-        ICentralCoordinator coordinatorEngine = new CentralCoordinator();
+        CentralCoordinator coordinatorEngine = new CentralCoordinator();
         centralCoordinatorRegistry.rebind("ICentralCoordinator", coordinatorEngine);
         
         // start registry for Client -> Central Server communication
@@ -75,8 +74,8 @@ public class App {
                 this.dataNodeOperationsLock,
                 this.dataNodesParticipants,
                 this.dataNodeParticipantsLock,
-                cleaner,
-                serverInfo.getCoordinatorPort());
+                coordinatorEngine,
+                cleaner);
         centralUserOperationsRegistry.rebind("ICentralUserOperations", centralUserOperationsEngine);
 
         
