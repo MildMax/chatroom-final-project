@@ -24,6 +24,7 @@ public class CoordinatorDecisionThread extends Thread {
     private final int decisionWaitTime;
     private final Transaction t;
     private boolean finished;
+    private final Object finishedLock = new Object();
 
     public CoordinatorDecisionThread(String coordinatorHost, int coordinatorPort, Transaction t, RMIAccess<IDataParticipant> participant) {
         this.coordinatorHostname = coordinatorHost;
@@ -38,7 +39,9 @@ public class CoordinatorDecisionThread extends Thread {
      * Indicates that the Transaction has been completed at the replica server external from the decision thread
      */
     public void setFinished() {
-        this.finished = true;
+        synchronized (finishedLock) {
+            this.finished = true;
+        }
     }
 
     /**
@@ -59,8 +62,10 @@ public class CoordinatorDecisionThread extends Thread {
         }
 
         // if finished value has been set, terminate thread
-        if (this.finished) {
-            return;
+        synchronized (finishedLock) {
+            if (this.finished) {
+                return;
+            }
         }
 
         // get the decision from the Coordinator for the transaction
