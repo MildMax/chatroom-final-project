@@ -449,7 +449,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
             }
             if (votesYes == nodesContacted) {
             	// Roll the inner create chatroom THEN doCommit
-            	response = innerDeleteChatroom(chatroomName, username);
+            	response = innerDeleteChatroom(chatroomName);
             	
             	// If we can't advance, 
             	if (response.getStatus() == ResponseStatus.FAIL) {
@@ -721,7 +721,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         }
     }
 
-    public Response innerDeleteChatroom(String chatroomName, String username) throws RemoteException {
+    public Response innerDeleteChatroom(String chatroomName) throws RemoteException {
     	synchronized (chatroomNodeLock) {
         	// Make sure that user has chatroom ownership
             RMIAccess<IChatroomOperations> accessor = CentralUserOperations.findChatroom(chatroomName, chatroomNodes);
