@@ -7,6 +7,7 @@ import java.rmi.RemoteException;
 // centralized server -> data node
 
 public interface IDataOperations extends Remote {
+
     Response verifyUser(String username, String password) throws RemoteException;
     
     /**
@@ -17,6 +18,7 @@ public interface IDataOperations extends Remote {
      * @throws RemoteException
      */
     Response verifyOwnership(String chatroomName, String username) throws RemoteException;
+
     /**
      * Checks if a user already exists
      * @param username to search for
@@ -32,29 +34,5 @@ public interface IDataOperations extends Remote {
      * @throws RemoteException
      */
     boolean chatroomExists(String chatroom) throws RemoteException;
-    
-    /**
-     * Deletes a chatroom from the map and writes it to file
-     * @param chatroomName
-     * @param dir of file to write to
-     * @throws RemoteException
-     */
-    void deleteChatroom(String chatroomName, Path dir) throws RemoteException;
-    
-    /**
-     * Adds a chatroom to the channelmap
-     * @param chatroomName
-     * @param username
-     * @throws RemoteException
-     */
-    void createChatroom(String chatroomName, String username) throws RemoteException;
-    
-    /**
-     * Adds a user to the usermap
-     * @param username the user to add
-     * @param password their password
-     * @throws RemoteException
-     */
-    void createUser(String username, String password) throws RemoteException;
 
 }

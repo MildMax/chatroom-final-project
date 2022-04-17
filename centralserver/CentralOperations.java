@@ -1,7 +1,10 @@
 package centralserver;
 
 import data.*;
+import util.ClientIPUtil;
+import util.Logger;
 import util.RMIAccess;
+import util.ThreadSafeStringFormatter;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -35,6 +38,14 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
 
     @Override
     public RegisterResponse registerDataNode(String hostname, int dataOperationsPort, int dataParticipantPort) throws RemoteException {
+
+        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Registering data node at \"%s\" with operations port \"%d\" and participant port \"%d\"",
+                hostname,
+                dataOperationsPort,
+                dataParticipantPort
+        ));
+
         synchronized (dataNodeOperationsLock) {
             dataNodesOperations.add(new RMIAccess<>(hostname, dataOperationsPort, "IDataOperations"));
         }
@@ -48,6 +59,13 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
 
     @Override
     public RegisterResponse registerChatNode(String hostname, int port) throws RemoteException {
+
+        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Registering chat node at \"%s\" with operations port \"%d\"",
+                hostname,
+                port
+        ));
+
         synchronized (chatroomNodeLock) {
             chatroomNodes.add(new RMIAccess<>(hostname, port, "IChatroomOperations"));
         }
@@ -57,6 +75,12 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
 
     @Override
     public long getServerTime() throws RemoteException {
+
+        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Received request for master server time from node at \"%s\"",
+                ClientIPUtil.getClientIP()
+        ));
+
         return System.currentTimeMillis();
     }
 

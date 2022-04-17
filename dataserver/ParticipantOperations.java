@@ -18,6 +18,10 @@ import java.nio.file.Paths;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ParticipantOperations extends UnicastRemoteObject implements IDataParticipant {
@@ -25,22 +29,28 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     private final String coordinatorHostname;
     private final int coordinatorPort;
     private final String serverId;
-    private final IDataOperations operationsEngine;
+    private final DataOperations operationsEngine;
     private final Path dir;
-    private ConcurrentHashMap<Integer, Transaction> transactionMap;
+    private Map<Integer, Transaction> transactionMap;
 
     // Silly hack to access channel map which shouldn't even exist here 
-    public ParticipantOperations(String coordinatorHostname, int coordinatorPort, String serverId, IDataOperations operationsEngine) throws RemoteException {
+    public ParticipantOperations(String coordinatorHostname, int coordinatorPort, String serverId, DataOperations operationsEngine) throws RemoteException {
         this.coordinatorHostname = coordinatorHostname;
         this.coordinatorPort = coordinatorPort;
         this.serverId = serverId;
         this.operationsEngine = operationsEngine;
         dir =  Paths.get("files_" + serverId + "/");
-        transactionMap = new ConcurrentHashMap<Integer, Transaction>();
+        transactionMap = Collections.synchronizedMap(new HashMap<>());
     }
 
     @Override
     public Ack canCommit(Transaction t) throws RemoteException {
+
+		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+				"Received canCommit on transaction \"%s\"",
+				t.toString()
+		));
+
     	// check if current node is committing on same key
     	int transactionKey = t.getTransactionIndex();
     	String key = t.getKey();
@@ -56,6 +66,12 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 
     @Override
     public void doCommit(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException {
+
+		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+				"Received doCommit on transaction \"%s\"",
+				t.toString()
+		));
+
     	// Write to physical file (call have committed) (only if transaction op is create chatroom)
     	switch (t.getOp()) {
     		case CREATEUSER:
@@ -70,7 +86,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     			break;
     		case DELETECHATROOM:
 				File chatroom = new File(dir.resolve(t.getKey()).toString() + ".txt");
-				operationsEngine.deleteChatroom(t.getKey(), dir);
+				operationsEngine.deleteChatroom(t.getKey());
 				if (chatroom.delete()) {
 					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
 							"Deleted chatroom %s", 
@@ -87,7 +103,10 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     			writeFile(t.getKey() + ".txt", t.getValue());
     			break;
     		default:
-    			// TODO just log an error?
+    			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+    					"Unable to operate on invalid command \"%s\"",
+						t.getOp().toString()
+				));
     			break;
     	}
     	RMIAccess<ICentralCoordinator> coordinator = new RMIAccess<>(coordinatorHostname, coordinatorPort, "ICentralCoordinator");
@@ -97,8 +116,11 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 			coord = coordinator.getAccess();
 			coord.haveCommitted(t, p);
 		} catch (RemoteException | NotBoundException e) {
-			// TODO What to log here?
-			e.printStackTrace();
+			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					"Unable to contact coordinator at \"%s:%d\"",
+					coordinatorHostname,
+					coordinatorPort
+			));
 		}
     	
     	transactionMap.remove(t.getTransactionIndex());
@@ -106,6 +128,12 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 
     @Override
     public void doAbort(Transaction t) throws RemoteException {
+
+		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+				"Received doAbort on transaction \"%s\"",
+				t.toString()
+		));
+
     	// check if index exists before removing (if it matches)
     	int transactionKey = t.getTransactionIndex();
     	if (transactionMap.containsKey(transactionKey)) {
@@ -126,8 +154,8 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 			return true;
 		} catch (IOException e) {
 			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-					"Something went very wrong %s", 
-					data
+					"Something went very wrong writing to file %s",
+					fileName
 					));
 			return false;
 		}
