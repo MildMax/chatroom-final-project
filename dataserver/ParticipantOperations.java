@@ -31,7 +31,8 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     private final String serverId;
     private final DataOperations operationsEngine;
     private final Path dir;
-    private Map<Integer, Transaction> transactionMap;
+    private final Map<Integer, Transaction> transactionMap;
+    private final Map<Integer, CoordinatorDecisionThread> decisionThreadMap;
 
     // Silly hack to access channel map which shouldn't even exist here 
     public ParticipantOperations(String coordinatorHostname, int coordinatorPort, String serverId, DataOperations operationsEngine) throws RemoteException {
@@ -39,12 +40,13 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
         this.coordinatorPort = coordinatorPort;
         this.serverId = serverId;
         this.operationsEngine = operationsEngine;
-        dir =  Paths.get("files_" + serverId + "/");
-        transactionMap = Collections.synchronizedMap(new HashMap<>());
+        this.dir =  Paths.get("files_" + serverId + "/");
+        this.transactionMap = Collections.synchronizedMap(new HashMap<>());
+        this.decisionThreadMap = Collections.synchronizedMap(new HashMap<>());
     }
 
     @Override
-    public Ack canCommit(Transaction t) throws RemoteException {
+    public Ack canCommit(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException {
 
 		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
 				"Received canCommit on transaction \"%s\"",
@@ -61,6 +63,9 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     	}
     	// We didn't find that key, so we are good to proceed.
 		transactionMap.put(transactionKey, t);
+    	CoordinatorDecisionThread thread = new CoordinatorDecisionThread(this.coordinatorHostname, this.coordinatorPort, t, p);
+    	thread.start();
+    	decisionThreadMap.put(transactionKey, thread);
 		return Ack.YES;
     }
 
@@ -71,6 +76,8 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 				"Received doCommit on transaction \"%s\"",
 				t.toString()
 		));
+
+		decisionThreadMap.get(t.getTransactionIndex()).setFinished();
 
     	// Write to physical file (call have committed) (only if transaction op is create chatroom)
     	switch (t.getOp()) {
@@ -128,6 +135,8 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 
     @Override
     public void doAbort(Transaction t) throws RemoteException {
+
+		decisionThreadMap.get(t.getTransactionIndex()).setFinished();
 
 		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
 				"Received doAbort on transaction \"%s\"",

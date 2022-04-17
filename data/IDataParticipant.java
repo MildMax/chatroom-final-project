@@ -19,7 +19,7 @@ public interface IDataParticipant extends Remote {
      * @return YES if the transaction can be committed, NO if transaction cannot be committed
      * @throws RemoteException if there is an error during RPC communication
      */
-    Ack canCommit(Transaction t) throws RemoteException;
+    Ack canCommit(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException;
 
     /**
      * Commits a transaction to the local Participant's KeyValue store

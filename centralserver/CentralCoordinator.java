@@ -10,6 +10,8 @@ import util.RMIAccess;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -17,11 +19,12 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
 	
 	private Map<Integer, Integer> commitMap;
 	private Map<Integer, Object> objectMap;
-	private Map<String, Ack> transactionDecisions;
+	private Map<Integer, Ack> transactionDecisions;
     
 	public CentralCoordinator() throws RemoteException {
     	commitMap = new ConcurrentHashMap<Integer, Integer>();
     	objectMap = new ConcurrentHashMap<Integer, Object>();
+    	transactionDecisions = Collections.synchronizedMap(new HashMap<>());
     }
 
     /**
@@ -31,7 +34,7 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
      * @param coordinatorDecision the decision of the coordinator for the transaction (YES for doCommit, NO for doAbort, NA for no decision)
      */
     public void setCoordinatorDecision(Transaction t, Ack coordinatorDecision) {
-        transactionDecisions.put(t.toString(), coordinatorDecision);
+        transactionDecisions.put(t.getTransactionIndex(), coordinatorDecision);
     }
 
     /**
@@ -40,7 +43,7 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
      * @param t transaction that Coordinator has previously made a decision on
      */
     public void removeCoordinatorDecision(Transaction t) {
-        transactionDecisions.remove(t.toString());
+        transactionDecisions.remove(t.getTransactionIndex());
     }
 	
 	
@@ -76,7 +79,7 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
 
     @Override
     public Ack getDecision(Transaction t) throws RemoteException {
-        return transactionDecisions.get(t.toString());
+        return transactionDecisions.get(t.getTransactionIndex());
     }
 
     /**
