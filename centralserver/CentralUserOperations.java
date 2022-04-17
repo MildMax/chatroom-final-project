@@ -282,6 +282,10 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
             	
             	// If we can't advance, 
             	if (response.getStatus() == ResponseStatus.FAIL) {
+					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+							"Unable to create resources for transaction \"%s\", forcing abort",
+							t.toString()
+					));
             		coordinator.setCoordinatorDecision(t, Ack.NO);
 					TwoPhaseCommit.forceAbort(t, dataNodesParticipants);
             		coordinator.removeCoordinatorDecision(t);
@@ -394,7 +398,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         synchronized (this.dataNodeOperationsLock) {
 			chatroomExists = isChatroomExists(chatroomName);
 		}
-        // Don't allow users to have a : in the name or password!
+
         if (!chatroomExists) {
     		errorMessage = "Chatroom doesn't exist";
     		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
@@ -449,9 +453,14 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
             	
             	// If we can't advance, 
             	if (response.getStatus() == ResponseStatus.FAIL) {
+            		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+            				"Unable to delete resources for transaction \"%s\", forcing abort",
+							t.toString()
+					));
 					coordinator.setCoordinatorDecision(t, Ack.NO);
 					TwoPhaseCommit.forceAbort(t, dataNodesParticipants);
 					coordinator.removeCoordinatorDecision(t);
+					return response;
             	}
 
             	coordinator.setCoordinatorDecision(t, Ack.YES);
