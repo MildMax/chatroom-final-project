@@ -14,12 +14,12 @@ import java.util.List;
 
 public class App {
 
-    private List<RMIAccess<IChatroomOperations>> chatroomNodes;
-    private Object chatroomNodeLock;
-    private List<RMIAccess<IDataOperations>> dataNodesOperations;
-    private Object dataNodeOperationsLock;
-    private List<RMIAccess<IDataParticipant>> dataNodesParticipants;
-    private Object dataNodeParticipantsLock;
+    private final List<RMIAccess<IChatroomOperations>> chatroomNodes;
+    private final Object chatroomNodeLock;
+    private final List<RMIAccess<IDataOperations>> dataNodesOperations;
+    private final Object dataNodeOperationsLock;
+    private final List<RMIAccess<IDataParticipant>> dataNodesParticipants;
+    private final Object dataNodeParticipantsLock;
 
     public App() {
         this.chatroomNodeLock = new Object();
