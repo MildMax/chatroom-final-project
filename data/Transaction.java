@@ -1,5 +1,7 @@
 package data;
 
+import util.ThreadSafeStringFormatter;
+
 import java.io.Serializable;
 
 /**
@@ -77,4 +79,12 @@ public class Transaction implements Serializable {
      */
     public int getTransactionIndex() { return this.index; }
 
+    @Override
+    public String toString() {
+        return ThreadSafeStringFormatter.format(
+                "%s %s",
+                this.op.toString(),
+                this.key
+        );
+    }
 }

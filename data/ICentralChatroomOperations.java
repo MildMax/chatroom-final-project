@@ -7,5 +7,5 @@ import java.rmi.RemoteException;
 
 public interface ICentralChatroomOperations extends Remote {
 
-    void logChatMessage(String chatroom, String message) throws RemoteException;
+    Response logChatMessage(String chatroom, String message) throws RemoteException;
 }

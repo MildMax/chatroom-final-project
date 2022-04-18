@@ -1,10 +1,6 @@
 package dataserver;
 
-import data.Ack;
-import data.ICentralCoordinator;
-import data.IDataOperations;
-import data.IDataParticipant;
-import data.Transaction;
+import data.*;
 import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
@@ -18,6 +14,10 @@ import java.nio.file.Paths;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ParticipantOperations extends UnicastRemoteObject implements IDataParticipant {
@@ -25,22 +25,36 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     private final String coordinatorHostname;
     private final int coordinatorPort;
     private final String serverId;
-    private final IDataOperations operationsEngine;
+    private final DataOperations operationsEngine;
     private final Path dir;
-    private ConcurrentHashMap<Integer, Transaction> transactionMap;
+    private final Map<Integer, Transaction> transactionMap;
+    private final Map<Integer, CoordinatorDecisionThread> decisionThreadMap;
 
     // Silly hack to access channel map which shouldn't even exist here 
-    public ParticipantOperations(String coordinatorHostname, int coordinatorPort, String serverId, IDataOperations operationsEngine) throws RemoteException {
+    public ParticipantOperations(String coordinatorHostname, int coordinatorPort, String serverId, DataOperations operationsEngine) throws RemoteException {
         this.coordinatorHostname = coordinatorHostname;
         this.coordinatorPort = coordinatorPort;
         this.serverId = serverId;
         this.operationsEngine = operationsEngine;
-        dir =  Paths.get("files_" + serverId + "/");
-        transactionMap = new ConcurrentHashMap<Integer, Transaction>();
+        this.dir =  Paths.get("files_" + serverId + "/");
+        this.transactionMap = Collections.synchronizedMap(new HashMap<>());
+        this.decisionThreadMap = Collections.synchronizedMap(new HashMap<>());
     }
 
     @Override
-    public Ack canCommit(Transaction t) throws RemoteException {
+    public Ack canCommit(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException {
+
+		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+				"Received canCommit on transaction \"%s\"",
+				t.toString()
+		));
+
+		// specific to create user -- handle here since resource is tracked locally
+		// if user exists, must say no
+		if (t.getOp() == Operations.CREATEUSER && operationsEngine.userExists(t.getKey())) {
+			return Ack.NO;
+		}
+
     	// check if current node is committing on same key
     	int transactionKey = t.getTransactionIndex();
     	String key = t.getKey();
@@ -51,28 +65,55 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     	}
     	// We didn't find that key, so we are good to proceed.
 		transactionMap.put(transactionKey, t);
+    	CoordinatorDecisionThread thread = new CoordinatorDecisionThread(this.coordinatorHostname, this.coordinatorPort, t, p);
+    	thread.start();
+    	decisionThreadMap.put(transactionKey, thread);
 		return Ack.YES;
-
-        
     }
 
     @Override
     public void doCommit(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException {
+
+		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+				"Received doCommit on transaction \"%s\"",
+				t.toString()
+		));
+
+		decisionThreadMap.get(t.getTransactionIndex()).setFinished();
+
     	// Write to physical file (call have committed) (only if transaction op is create chatroom)
     	switch (t.getOp()) {
     		case CREATEUSER:
+    			if (operationsEngine.userExists(t.getKey())) {
+    				// enforce at most once semantics if multiple concurrent requests are received
+					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+							"User \"%s\" already been created in concurrent transaction",
+							t.getKey()
+					));
+    				break;
+				}
     			// Usernames and passwords stored in the format username:password 
     			writeFile("users.txt", t.getKey() + ":" + t.getValue());
     			operationsEngine.createUser(t.getKey(), t.getValue());
     			break;
     		case CREATECHATROOM:
+    			if (operationsEngine.chatroomExists(t.getKey())) {
+    				// enforce at most once semantics if multiple concurrent requests are received
+					Logger.writeMessageToLog("Chatroom \"%s\" has already been created in concurrent transaction");
+					break;
+				}
     			// Chatroom ownership is stored in the format chatroom:user
     			writeFile("chatrooms.txt", t.getKey() + ":" + t.getValue());
     			operationsEngine.createChatroom(t.getKey(), t.getValue());
     			break;
     		case DELETECHATROOM:
-				File chatroom = new File(dir.resolve(t.getKey()).toString() + ".txt");
-				operationsEngine.deleteChatroom(t.getKey(), dir);
+				if (!operationsEngine.chatroomExists(t.getKey())) {
+					// enforce at most once semantics if multiple concurrent requests are received
+					Logger.writeMessageToLog("Chatroom \"%s\" has already been deleted in concurrent transaction");
+					break;
+				}
+				File chatroom = new File(dir.resolve("chatlogs/" + t.getKey()).toString() + ".txt");
+				operationsEngine.deleteChatroom(t.getKey());
 				if (chatroom.delete()) {
 					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
 							"Deleted chatroom %s", 
@@ -86,10 +127,13 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 				}
     			break;
     		case LOGMESSAGE:
-    			writeFile(t.getKey() + ".txt", t.getValue());
+    			writeFile("chatlogs/" + t.getKey() + ".txt", t.getValue());
     			break;
     		default:
-    			// TODO just log an error?
+    			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+    					"Unable to operate on invalid command \"%s\"",
+						t.getOp().toString()
+				));
     			break;
     	}
     	RMIAccess<ICentralCoordinator> coordinator = new RMIAccess<>(coordinatorHostname, coordinatorPort, "ICentralCoordinator");
@@ -99,8 +143,11 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 			coord = coordinator.getAccess();
 			coord.haveCommitted(t, p);
 		} catch (RemoteException | NotBoundException e) {
-			// TODO What to log here?
-			e.printStackTrace();
+			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					"Unable to contact coordinator at \"%s:%d\"",
+					coordinatorHostname,
+					coordinatorPort
+			));
 		}
     	
     	transactionMap.remove(t.getTransactionIndex());
@@ -108,6 +155,17 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 
     @Override
     public void doAbort(Transaction t) throws RemoteException {
+
+		CoordinatorDecisionThread th = decisionThreadMap.get(t.getTransactionIndex());
+		if (th != null) {
+			th.setFinished();
+		}
+
+		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+				"Received doAbort on transaction \"%s\"",
+				t.toString()
+		));
+
     	// check if index exists before removing (if it matches)
     	int transactionKey = t.getTransactionIndex();
     	if (transactionMap.containsKey(transactionKey)) {
@@ -116,7 +174,6 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 
     }
 
-	@Override
 	public synchronized boolean writeFile(String fileName, String data) throws RemoteException {
 		try {
 			// Creates the file if it doesn't exist, if it does exist it will append to the file.
@@ -128,10 +185,12 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 			return true;
 		} catch (IOException e) {
 			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-					"Something went very wrong %s", 
-					data
+					"Something went very wrong writing to file %s",
+					fileName
 					));
 			return false;
 		}
 	}
+
+
 }

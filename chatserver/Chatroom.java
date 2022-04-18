@@ -20,7 +20,6 @@ public class Chatroom {
         synchronized (subscriberListLock) {
             // do sub here
         }
-
     }
 
     public void Publish(String message) {

@@ -59,8 +59,8 @@ public class App {
 					}
 					br.close();
 				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+					Logger.writeErrorToLog("Unable to find or create users.txt for server; shutting down server");
+					return;
 				}
         }
 
@@ -78,25 +78,29 @@ public class App {
 				}
 				br.close();
 			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+                Logger.writeErrorToLog("Unable to find or create chatrooms.txt for server; shutting down server");
+                return;
 			}
+        }
+
+        // create directory for chatroom logs
+        File chatLogdir = new File("files_" + serverInfo.getId() + "/chatlogs");
+        if (!chatLogdir.exists()) {
+            if (!chatLogdir.mkdir()) {
+                Logger.writeErrorToLog("Unable to create chatLogs subdirectory");
+                return;
+            }
         }
         
         // start the Data Operations registry
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());
-        IDataOperations operationsEngine = new DataOperations(this.userMap, this.userMapLock, this.channelMap, this.channelMapLock);
+        IDataOperations operationsEngine = new DataOperations(this.userMap, this.userMapLock, this.channelMap, this.channelMapLock, serverInfo);
         operationsRegistry.rebind("IDataOperations", operationsEngine);
 
         // start the Data Participant registry
         Registry participantRegistry = LocateRegistry.createRegistry(serverInfo.getParticipantPort());
-        IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId(), operationsEngine);
+        IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId(), (DataOperations) operationsEngine);
         participantRegistry.rebind("IDataParticipant", participantEngine);
-        
-        Transaction t = new Transaction(Operations.CREATECHATROOM,"hello", "pass");
-        Transaction t1 = new Transaction(Operations.DELETECHATROOM,"hello", "pass");
-        participantEngine.doCommit(t, null);
-        participantEngine.doCommit(t1, null);
         
         System.out.println(ThreadSafeStringFormatter.format(
                 "Data server %s is ready",

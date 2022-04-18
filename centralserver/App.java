@@ -11,16 +11,15 @@ import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class App {
 
-    private List<RMIAccess<IChatroomOperations>> chatroomNodes;
-    private Object chatroomNodeLock;
-    private List<RMIAccess<IDataOperations>> dataNodesOperations;
-    private Object dataNodeOperationsLock;
-    private List<RMIAccess<IDataParticipant>> dataNodesParticipants;
-    private Object dataNodeParticipantsLock;
+    private final List<RMIAccess<IChatroomOperations>> chatroomNodes;
+    private final Object chatroomNodeLock;
+    private final List<RMIAccess<IDataOperations>> dataNodesOperations;
+    private final Object dataNodeOperationsLock;
+    private final List<RMIAccess<IDataParticipant>> dataNodesParticipants;
+    private final Object dataNodeParticipantsLock;
 
     public App() {
         this.chatroomNodeLock = new Object();
@@ -55,15 +54,15 @@ public class App {
         Thread cleanerThread = new Thread(cleaner);
         cleanerThread.start();
 
-        // start registry for Chatroom -> Central Server communication
-        Registry centralChatroomOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getChatroomPort());
-        ICentralChatroomOperations centralChatroomOperationsEngine = new CentralChatroomOperations(this.dataNodesParticipants, this.dataNodeParticipantsLock);
-        centralChatroomOperationsRegistry.rebind("ICentralChatroomOperations", centralChatroomOperationsEngine);
-
-     // start registry for Data -> Central Coordinator operations
+        // start registry for Data -> Central Coordinator operations
         Registry centralCoordinatorRegistry = LocateRegistry.createRegistry(serverInfo.getCoordinatorPort());
         CentralCoordinator coordinatorEngine = new CentralCoordinator();
         centralCoordinatorRegistry.rebind("ICentralCoordinator", coordinatorEngine);
+
+        // start registry for Chatroom -> Central Server communication
+        Registry centralChatroomOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getChatroomPort());
+        ICentralChatroomOperations centralChatroomOperationsEngine = new CentralChatroomOperations(this.dataNodesParticipants, this.dataNodeParticipantsLock, coordinatorEngine);
+        centralChatroomOperationsRegistry.rebind("ICentralChatroomOperations", centralChatroomOperationsEngine);
         
         // start registry for Client -> Central Server communication
         Registry centralUserOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getUserPort());
@@ -78,10 +77,7 @@ public class App {
                 cleaner);
         centralUserOperationsRegistry.rebind("ICentralUserOperations", centralUserOperationsEngine);
 
-        
-
         System.out.println("Central Server is ready");
-
     }
 
     public static void main(String[] args) {
