@@ -2,6 +2,7 @@ package centralserver;
 
 import data.Ack;
 import data.IDataParticipant;
+import data.Response;
 import data.Transaction;
 import util.Logger;
 import util.RMIAccess;
@@ -9,6 +10,7 @@ import util.ThreadSafeStringFormatter;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.util.LinkedList;
 import java.util.List;
 
 public class TwoPhaseCommit {
@@ -43,57 +45,42 @@ public class TwoPhaseCommit {
     }
 
     public boolean canCommit(Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Object dataNodeParticipantsLock) {
-        int votesYes = 0;
-        int nodesContacted = 0;
-        // TODO maybe do a retry?
-        // if there's an error, create a string for errorMessage to send back to the client
+        List<CanCommitThread> commitThreads = new LinkedList<>();
         synchronized (dataNodeParticipantsLock) {
             for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
-                IDataParticipant dataNode = null;
-                // TODO we don't want to fail if we can't access node
-                // TODO move try catch for remote exception/host exception here and continue attempting on additional nodes
-                try {
-                    dataNode = participant.getAccess();
-                } catch (NotBoundException | RemoteException e) {
-                    Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                            "Unable to reach data node at \"%s:%d\" during canCommit, skipping...",
-                            participant.getHostname(),
-                            participant.getPort()
-                    ));
-                    continue;
-                }
-
-                // Make sure everyone votes yes.
-                try {
-                    if (dataNode.canCommit(t, participant) == Ack.YES) {
-                        nodesContacted++;
-                        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                                "Participant node at \"%s:%d\" voted YES",
-                                participant.getHostname(),
-                                participant.getPort()
-                        ));
-                        votesYes++;
-                    } else {
-                        nodesContacted++;
-                        // If we get a no or NA vote, just stop looping
-                        Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                                "Participant node at \"%s:%d\" voted NO",
-                                participant.getHostname(),
-                                participant.getPort()
-                        ));
-                    }
-                } catch (RemoteException e) {
-                    Logger.writeErrorToLog(e.getMessage());
-                    Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                            "Unable to contact participant node at \"%s:%d\", skipping...",
-                            participant.getHostname(),
-                            participant.getPort()
-                    ));
-                }
+                CanCommitThread thread = new CanCommitThread(participant, t);
+                thread.start();
+                commitThreads.add(thread);
             }
         }
 
-        return votesYes == nodesContacted;
+        boolean success = true;
+        for (CanCommitThread thread : commitThreads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                        "Unable to join canCommit thread for participant \"%s:%d\" on transaction \"%s\"",
+                        thread.getParticipant().getHostname(),
+                        thread.getParticipant().getPort(),
+                        thread.getTransaction().toString()
+                ));
+                success = false;
+                continue;
+            }
+
+            if (thread.getResult() != Ack.YES) {
+                success = false;
+            }
+            Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                    "Participant at \"%s:%d\" voted \"%s\"",
+                    thread.getParticipant().getHostname(),
+                    thread.getParticipant().getPort(),
+                    thread.getResult()
+            ));
+        }
+
+        return success;
     }
 
     public void doCommit (Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Object dataNodeParticipantsLock, CentralCoordinator coordinator) {
@@ -146,10 +133,23 @@ public class TwoPhaseCommit {
     public void doAbort(Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Object dataNodeParticipantsLock) {
         synchronized (dataNodeParticipantsLock) {
             for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
-                IDataParticipant dataNode;
                 try {
-                    dataNode = participant.getAccess();
-                    dataNode.doAbort(t);
+                    Thread abortThread = new Thread(new Runnable() {
+                        IDataParticipant dataNode = participant.getAccess();
+
+                        @Override
+                        public void run() {
+                            try {
+                                dataNode.doAbort(t);
+                            } catch (RemoteException e) {
+                                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                        "Something went wrong starting a thread at %s",
+                                        participant.getHostname()
+                                ));
+                            }
+                        }
+                    });
+                    abortThread.start();
                 } catch (RemoteException | NotBoundException e) {
                     Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
                             "Unable to contact data node at \"%s:%d\", skipping...",
@@ -159,6 +159,38 @@ public class TwoPhaseCommit {
                 }
 
             }
+        }
+    }
+
+    private static class CanCommitThread extends Thread {
+
+        private final RMIAccess<IDataParticipant> participant;
+        private final Transaction t;
+        private Ack result = Ack.NA;
+
+        CanCommitThread(RMIAccess<IDataParticipant> participant, Transaction t) {
+            this.participant = participant;
+            this.t = t;
+        }
+
+        @Override
+        public void run() {
+            try {
+                this.result = this.participant.getAccess().canCommit(t, participant);
+            } catch (RemoteException | NotBoundException e) {
+                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                        "Something went wrong during canCommit for node \"%s\"",
+                        participant.getHostname()
+                ));
+            }
+        }
+
+        public Ack getResult() { return this.result; }
+
+        public RMIAccess<IDataParticipant> getParticipant() { return this.participant; }
+
+        public Transaction getTransaction() {
+            return t;
         }
     }
 }
