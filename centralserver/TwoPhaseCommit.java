@@ -27,6 +27,22 @@ public class TwoPhaseCommit {
 
         coordinator.setCoordinatorDecision(t, Ack.NA);
 
+        boolean success = canCommit(t, dataNodesParticipants, dataNodeParticipantsLock);
+
+        if (success) {
+            coordinator.setCoordinatorDecision(t, Ack.YES);
+            doCommit(t, dataNodesParticipants, dataNodeParticipantsLock, coordinator);
+            coordinator.removeCoordinatorDecision(t);
+            return true;
+        } else {
+            coordinator.setCoordinatorDecision(t, Ack.NO);
+            doAbort(t, dataNodesParticipants, dataNodeParticipantsLock);
+            coordinator.removeCoordinatorDecision(t);
+            return false;
+        }
+    }
+
+    public boolean canCommit(Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Object dataNodeParticipantsLock) {
         int votesYes = 0;
         int nodesContacted = 0;
         // TODO maybe do a retry?
@@ -77,66 +93,57 @@ public class TwoPhaseCommit {
             }
         }
 
-
-
-            if (votesYes == nodesContacted) {
-                coordinator.setCoordinatorDecision(t, Ack.YES);
-                Object waitObject = new Object();
-
-                synchronized (dataNodeParticipantsLock) {
-                    for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
-                        Thread commitThread = null;
-                        try {
-                            commitThread = new Thread(new Runnable() {
-                                IDataParticipant dataNode = participant.getAccess();
-
-                                @Override
-                                public void run() {
-                                    try {
-                                        dataNode.doCommit(t, participant);
-                                    } catch (RemoteException e) {
-                                        Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                                                "Something went wrong starting a thread at %s",
-                                                participant.getHostname()
-                                        ));
-                                    }
-                                }
-                            });
-                        } catch (Exception e) {
-                            Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                                    "Unable to contact data node at \"%s:%d\" during doCommit, skipping...",
-                                    participant.getHostname(),
-                                    participant.getPort()
-                            ));
-                            continue;
-                        }
-
-                        commitThread.start();
-                        coordinator.addWaitCommit(t, waitObject);
-
-                    }
-                }
-                synchronized (waitObject) {
-                    try {
-                        waitObject.wait(1000);
-                    } catch (InterruptedException e) {
-                        Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                                "Something went wrong with the wait \"%s\"",
-                                e
-                        ));
-                    }
-                }
-                coordinator.removeCoordinatorDecision(t);
-                return true;
-            } else {
-                coordinator.setCoordinatorDecision(t, Ack.NO);
-                doAbort(t, dataNodesParticipants, dataNodeParticipantsLock);
-                coordinator.removeCoordinatorDecision(t);
-                return false;
-            }
+        return votesYes == nodesContacted;
     }
 
-    public static void doAbort(Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Object dataNodeParticipantsLock) {
+    public void doCommit (Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Object dataNodeParticipantsLock, CentralCoordinator coordinator) {
+        Object waitObject = new Object();
+        synchronized (dataNodeParticipantsLock) {
+            for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+                Thread commitThread = null;
+                try {
+                    commitThread = new Thread(new Runnable() {
+                        IDataParticipant dataNode = participant.getAccess();
+
+                        @Override
+                        public void run() {
+                            try {
+                                dataNode.doCommit(t, participant);
+                            } catch (RemoteException e) {
+                                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                        "Something went wrong starting a thread at %s",
+                                        participant.getHostname()
+                                ));
+                            }
+                        }
+                    });
+                } catch (Exception e) {
+                    Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                            "Unable to contact data node at \"%s:%d\" during doCommit, skipping...",
+                            participant.getHostname(),
+                            participant.getPort()
+                    ));
+                    continue;
+                }
+
+                commitThread.start();
+                coordinator.addWaitCommit(t, waitObject);
+
+            }
+        }
+        synchronized (waitObject) {
+            try {
+                waitObject.wait(1000);
+            } catch (InterruptedException e) {
+                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                        "Something went wrong with the wait \"%s\"",
+                        e
+                ));
+            }
+        }
+    }
+
+    public void doAbort(Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Object dataNodeParticipantsLock) {
         synchronized (dataNodeParticipantsLock) {
             for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
                 IDataParticipant dataNode;

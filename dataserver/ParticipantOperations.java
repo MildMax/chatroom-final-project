@@ -49,7 +49,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 				t.toString()
 		));
 
-		// specific to create user -- handle here
+		// specific to create user -- handle here since resource is tracked locally
 		// if user exists, must say no
 		if (t.getOp() == Operations.CREATEUSER && operationsEngine.userExists(t.getKey())) {
 			return Ack.NO;
