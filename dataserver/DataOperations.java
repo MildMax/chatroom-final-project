@@ -158,7 +158,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 		synchronized(chatroomMapLock) {
 			if (!chatroomMap.containsKey(chatroomName)) {
 				chatroomMap.put(chatroomName, username);
-				File chatLog = new File(dir.toString() + "/" + chatroomName + ".txt");
+				File chatLog = new File(dir.toString() + "/chatlogs/" + chatroomName + ".txt");
 				try {
 					if (chatLog.createNewFile()) {
 						Logger.writeMessageToLog(ThreadSafeStringFormatter.format(

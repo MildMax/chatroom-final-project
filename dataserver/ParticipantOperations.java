@@ -92,7 +92,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     			operationsEngine.createChatroom(t.getKey(), t.getValue());
     			break;
     		case DELETECHATROOM:
-				File chatroom = new File(dir.resolve(t.getKey()).toString() + ".txt");
+				File chatroom = new File(dir.resolve("chatlogs/" + t.getKey()).toString() + ".txt");
 				operationsEngine.deleteChatroom(t.getKey());
 				if (chatroom.delete()) {
 					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
@@ -107,7 +107,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 				}
     			break;
     		case LOGMESSAGE:
-    			writeFile(t.getKey() + ".txt", t.getValue());
+    			writeFile("chatlogs/" + t.getKey() + ".txt", t.getValue());
     			break;
     		default:
     			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(

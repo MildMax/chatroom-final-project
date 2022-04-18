@@ -82,6 +82,15 @@ public class App {
                 return;
 			}
         }
+
+        // create directory for chatroom logs
+        File chatLogdir = new File("files_" + serverInfo.getId() + "/chatlogs");
+        if (!chatLogdir.exists()) {
+            if (!chatLogdir.mkdir()) {
+                Logger.writeErrorToLog("Unable to create chatLogs subdirectory");
+                return;
+            }
+        }
         
         // start the Data Operations registry
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());
