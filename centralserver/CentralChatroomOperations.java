@@ -35,7 +35,8 @@ public class CentralChatroomOperations extends UnicastRemoteObject implements IC
 		));
 
     	Transaction t = new Transaction(Operations.LOGMESSAGE, chatroom, message);
-    	boolean success = TwoPhaseCommit.GenericCommit(dataNodeParticipantsLock, dataNodesParticipants, t, coordinator);
+		TwoPhaseCommit committer = new TwoPhaseCommit();
+		boolean success = committer.GenericCommit(dataNodeParticipantsLock, dataNodesParticipants, t, coordinator);
 
 		if (success) {
 			Logger.writeMessageToLog(ThreadSafeStringFormatter.format(

@@ -91,7 +91,8 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         
         else {
 			Transaction t = new Transaction(Operations.CREATEUSER, username, password);
-			success = TwoPhaseCommit.GenericCommit(dataNodeParticipantsLock, dataNodesParticipants, t, coordinator);
+			TwoPhaseCommit committer = new TwoPhaseCommit();
+			success = committer.GenericCommit(dataNodeParticipantsLock, dataNodesParticipants, t, coordinator);
 		}
 
         if (success) {
@@ -275,57 +276,62 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 					}
 				}
             }
+
             if (votesYes == nodesContacted) {
 
             	// Roll the inner create chatroom THEN doCommit
             	response = CentralUserOperations.innerCreateChatroom(chatroomName, this.chatroomNodeLock, this.chatroomNodes);
-            	
-            	// If we can't advance, 
+
+            	// If we can't advance,
             	if (response.getStatus() == ResponseStatus.FAIL) {
 					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
 							"Unable to create resources for transaction \"%s\", forcing abort",
 							t.toString()
 					));
             		coordinator.setCoordinatorDecision(t, Ack.NO);
-					TwoPhaseCommit.forceAbort(t, dataNodesParticipants);
+					TwoPhaseCommit.doAbort(t, dataNodesParticipants, dataNodeParticipantsLock);
             		coordinator.removeCoordinatorDecision(t);
             		return response;
             	}
 
 				coordinator.setCoordinatorDecision(t, Ack.YES);
-            	
+
         		Object waitObject = new Object();
-        		for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
-        			Thread commitThread = null;
 
-					try {
-						commitThread = new Thread(new Runnable() {
-							IDataParticipant dataNode = participant.getAccess();
-							@Override
-							public void run() {
-								try {
-									dataNode.doCommit(t, participant);
-								} catch (RemoteException e) {
-									Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-											"Something went wrong creating a thread for data node participant at \"%s:%d\"",
-											participant.getHostname(),
-											participant.getPort()
-									));
+        		synchronized (dataNodeParticipantsLock) {
+					for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+						Thread commitThread = null;
+
+						try {
+							commitThread = new Thread(new Runnable() {
+								IDataParticipant dataNode = participant.getAccess();
+
+								@Override
+								public void run() {
+									try {
+										dataNode.doCommit(t, participant);
+									} catch (RemoteException e) {
+										Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+												"Something went wrong creating a thread for data node participant at \"%s:%d\"",
+												participant.getHostname(),
+												participant.getPort()
+										));
+									}
 								}
-							}
-						});
-					} catch (Exception e) {
-						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-								"Unable to contact participant data node at \"%s:%d\", skipping...",
-								participant.getHostname(),
-								participant.getPort()
-						));
-						continue;
-					}
+							});
+						} catch (Exception e) {
+							Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+									"Unable to contact participant data node at \"%s:%d\", skipping...",
+									participant.getHostname(),
+									participant.getPort()
+							));
+							continue;
+						}
 
-					commitThread.start();
-					coordinator.addWaitCommit(t, waitObject);
-        		}
+						commitThread.start();
+						coordinator.addWaitCommit(t, waitObject);
+					}
+				}
         		synchronized(waitObject) {
         			try {
 						waitObject.wait(1000);
@@ -348,7 +354,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         		return response;
         	} else {
             	coordinator.setCoordinatorDecision(t, Ack.NO);
-        		TwoPhaseCommit.forceAbort(t, dataNodesParticipants);
+        		TwoPhaseCommit.doAbort(t, dataNodesParticipants, dataNodeParticipantsLock);
         		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
                         "Unable to create chatroom \"%s\"",
                         chatroomName
@@ -523,7 +529,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 						t.toString()
 				));
 				coordinator.setCoordinatorDecision(t, Ack.NO);
-				TwoPhaseCommit.forceAbort(t, dataNodesParticipants);
+				TwoPhaseCommit.doAbort(t, dataNodesParticipants, dataNodeParticipantsLock);
 				coordinator.removeCoordinatorDecision(t);
 				return response;
 			}
@@ -531,35 +537,40 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 			coordinator.setCoordinatorDecision(t, Ack.YES);
 
 			Object waitObject = new Object();
-			for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
-				Thread commitThread;
-				try {
-					commitThread = new Thread(new Runnable() {
-						IDataParticipant dataNode = participant.getAccess();
-						@Override
-						public void run() {
-							try {
-								dataNode.doCommit(t, participant);
-							} catch (RemoteException e) {
-								Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-										"Something went wrong starting a thread at %s",
-										participant.getHostname()
-								));
-							}
-						}
-					});
-				} catch (Exception e) {
-					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-							"Unable to contact participant data node at \"%s:%d\", skipping...",
-							participant.getHostname(),
-							participant.getPort()
-					));
-					continue;
-				}
 
-				commitThread.start();
-				coordinator.addWaitCommit(t, waitObject);
+			synchronized (dataNodeParticipantsLock) {
+				for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+					Thread commitThread;
+					try {
+						commitThread = new Thread(new Runnable() {
+							IDataParticipant dataNode = participant.getAccess();
+
+							@Override
+							public void run() {
+								try {
+									dataNode.doCommit(t, participant);
+								} catch (RemoteException e) {
+									Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+											"Something went wrong starting a thread at %s",
+											participant.getHostname()
+									));
+								}
+							}
+						});
+					} catch (Exception e) {
+						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+								"Unable to contact participant data node at \"%s:%d\", skipping...",
+								participant.getHostname(),
+								participant.getPort()
+						));
+						continue;
+					}
+
+					commitThread.start();
+					coordinator.addWaitCommit(t, waitObject);
+				}
 			}
+
 			synchronized(waitObject) {
 				try {
 					waitObject.wait(1000);
@@ -582,7 +593,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 			return response;
 		} else {
 			coordinator.setCoordinatorDecision(t, Ack.NO);
-			TwoPhaseCommit.forceAbort(t, dataNodesParticipants);
+			TwoPhaseCommit.doAbort(t, dataNodesParticipants, dataNodeParticipantsLock);
 			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
 					"Unable to delete chatroom \"%s\"",
 					chatroomName
@@ -790,6 +801,14 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     	synchronized (chatroomNodeLock) {
         	// Make sure that user has chatroom ownership
             RMIAccess<IChatroomOperations> accessor = CentralUserOperations.findChatroom(chatroomName, chatroomNodes);
+
+            if (accessor == null) {
+            	Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						"Unable to find chatroom node with chatroom \"%s\"",
+						chatroomName
+				));
+            	return new Response(ResponseStatus.FAIL, "Chatroom does not exist");
+			}
 
             try {
                 accessor.getAccess().deleteChatroom(chatroomName);

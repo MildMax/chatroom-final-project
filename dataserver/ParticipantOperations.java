@@ -1,10 +1,6 @@
 package dataserver;
 
-import data.Ack;
-import data.ICentralCoordinator;
-import data.IDataOperations;
-import data.IDataParticipant;
-import data.Transaction;
+import data.*;
 import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
@@ -53,6 +49,12 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 				t.toString()
 		));
 
+		// specific to create user -- handle here
+		// if user exists, must say no
+		if (t.getOp() == Operations.CREATEUSER && operationsEngine.userExists(t.getKey())) {
+			return Ack.NO;
+		}
+
     	// check if current node is committing on same key
     	int transactionKey = t.getTransactionIndex();
     	String key = t.getKey();
@@ -82,16 +84,34 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     	// Write to physical file (call have committed) (only if transaction op is create chatroom)
     	switch (t.getOp()) {
     		case CREATEUSER:
+    			if (operationsEngine.userExists(t.getKey())) {
+    				// enforce at most once semantics if multiple concurrent requests are received
+					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+							"User \"%s\" already been created in concurrent transaction",
+							t.getKey()
+					));
+    				break;
+				}
     			// Usernames and passwords stored in the format username:password 
     			writeFile("users.txt", t.getKey() + ":" + t.getValue());
     			operationsEngine.createUser(t.getKey(), t.getValue());
     			break;
     		case CREATECHATROOM:
+    			if (operationsEngine.chatroomExists(t.getKey())) {
+    				// enforce at most once semantics if multiple concurrent requests are received
+					Logger.writeMessageToLog("Chatroom \"%s\" has already been created in concurrent transaction");
+					break;
+				}
     			// Chatroom ownership is stored in the format chatroom:user
     			writeFile("chatrooms.txt", t.getKey() + ":" + t.getValue());
     			operationsEngine.createChatroom(t.getKey(), t.getValue());
     			break;
     		case DELETECHATROOM:
+				if (!operationsEngine.chatroomExists(t.getKey())) {
+					// enforce at most once semantics if multiple concurrent requests are received
+					Logger.writeMessageToLog("Chatroom \"%s\" has already been deleted in concurrent transaction");
+					break;
+				}
 				File chatroom = new File(dir.resolve("chatlogs/" + t.getKey()).toString() + ".txt");
 				operationsEngine.deleteChatroom(t.getKey());
 				if (chatroom.delete()) {
@@ -136,7 +156,10 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     @Override
     public void doAbort(Transaction t) throws RemoteException {
 
-		decisionThreadMap.get(t.getTransactionIndex()).setFinished();
+		CoordinatorDecisionThread th = decisionThreadMap.get(t.getTransactionIndex());
+		if (th != null) {
+			th.setFinished();
+		}
 
 		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
 				"Received doAbort on transaction \"%s\"",

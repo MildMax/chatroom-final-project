@@ -8,6 +8,8 @@ import util.RMIAccess;
 
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
+import java.util.LinkedList;
+import java.util.List;
 
 public class Test {
 
@@ -156,6 +158,89 @@ public class Test {
         ChatroomResponse r18 = centralServerAccessor.getAccess().createChatroom("sample:chatroom", "sample_user");
         System.out.println(r18.getStatus());
         System.out.println(r18.getMessage());
+
+        System.out.println();
+
+        System.out.println("Stress-testing 2PC on registerUser");
+        List<Thread> threadList = new LinkedList<>();
+        for (int i = 0; i < 5; ++i) {
+            Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        centralServerAccessor.getAccess().registerUser("sample_user3", "sample_password");
+                    } catch (RemoteException | NotBoundException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            t.start();
+            threadList.add(t);
+        }
+
+        for (Thread t : threadList) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        System.out.println();
+
+        System.out.println("Stress-testing 2PC on createChatroom");
+
+        threadList.clear();
+        for (int i = 0; i < 5; ++i) {
+            Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        centralServerAccessor.getAccess().createChatroom("chatroom3", "sample_user");
+                    } catch (RemoteException | NotBoundException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            t.start();
+            threadList.add(t);
+        }
+
+        for (Thread t : threadList) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        System.out.println();
+
+        System.out.println("Stress-testing 2PC on deleteChatroom");
+
+        threadList.clear();
+        for (int i = 0; i < 5; ++i) {
+            Thread t = new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        centralServerAccessor.getAccess().deleteChatroom("chatroom3", "sample_user", "sample_password");
+                    } catch (RemoteException | NotBoundException e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
+            t.start();
+            threadList.add(t);
+        }
+
+        for (Thread t : threadList) {
+            try {
+                t.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 
     }
 }

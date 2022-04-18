@@ -23,7 +23,7 @@ public class TwoPhaseCommit {
      * @param coordinator
      * @return
      */
-    public static synchronized boolean GenericCommit(Object dataNodeParticipantsLock, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Transaction t, CentralCoordinator coordinator) {
+    public boolean GenericCommit(Object dataNodeParticipantsLock, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Transaction t, CentralCoordinator coordinator) {
 
         coordinator.setCoordinatorDecision(t, Ack.NA);
 
@@ -75,41 +75,48 @@ public class TwoPhaseCommit {
                     ));
                 }
             }
+        }
+
+
 
             if (votesYes == nodesContacted) {
                 coordinator.setCoordinatorDecision(t, Ack.YES);
                 Object waitObject = new Object();
-                for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
-                    Thread commitThread = null;
-                    try {
-                        commitThread = new Thread(new Runnable() {
-                            IDataParticipant dataNode = participant.getAccess();
-                            @Override
-                            public void run() {
-                                try {
-                                    dataNode.doCommit(t, participant);
-                                } catch (RemoteException e) {
-                                    Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                                            "Something went wrong starting a thread at %s",
-                                            participant.getHostname()
-                                    ));
+
+                synchronized (dataNodeParticipantsLock) {
+                    for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+                        Thread commitThread = null;
+                        try {
+                            commitThread = new Thread(new Runnable() {
+                                IDataParticipant dataNode = participant.getAccess();
+
+                                @Override
+                                public void run() {
+                                    try {
+                                        dataNode.doCommit(t, participant);
+                                    } catch (RemoteException e) {
+                                        Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                                "Something went wrong starting a thread at %s",
+                                                participant.getHostname()
+                                        ));
+                                    }
                                 }
-                            }
-                        });
-                    } catch (Exception e) {
-                        Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                                "Unable to contact data node at \"%s:%d\" during doCommit, skipping...",
-                                participant.getHostname(),
-                                participant.getPort()
-                        ));
-                        continue;
+                            });
+                        } catch (Exception e) {
+                            Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                    "Unable to contact data node at \"%s:%d\" during doCommit, skipping...",
+                                    participant.getHostname(),
+                                    participant.getPort()
+                            ));
+                            continue;
+                        }
+
+                        commitThread.start();
+                        coordinator.addWaitCommit(t, waitObject);
+
                     }
-
-                    commitThread.start();
-                    coordinator.addWaitCommit(t, waitObject);
-
                 }
-                synchronized(waitObject) {
+                synchronized (waitObject) {
                     try {
                         waitObject.wait(1000);
                     } catch (InterruptedException e) {
@@ -123,33 +130,28 @@ public class TwoPhaseCommit {
                 return true;
             } else {
                 coordinator.setCoordinatorDecision(t, Ack.NO);
-                forceAbort(t, dataNodesParticipants);
+                doAbort(t, dataNodesParticipants, dataNodeParticipantsLock);
                 coordinator.removeCoordinatorDecision(t);
                 return false;
             }
-        }
-
-
     }
 
-    /**
-     * A helper function to force an abort to be called on all nodes.
-     * @param t Transaction
-     */
-    public static void forceAbort(Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants) {
-        for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
-            IDataParticipant dataNode;
-            try {
-                dataNode = participant.getAccess();
-                dataNode.doAbort(t);
-            } catch (RemoteException | NotBoundException e) {
-                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                        "Unable to contact data node at \"%s:%d\", skipping...",
-                        participant.getHostname(),
-                        participant.getPort()
-                ));
-            }
+    public static void doAbort(Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Object dataNodeParticipantsLock) {
+        synchronized (dataNodeParticipantsLock) {
+            for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+                IDataParticipant dataNode;
+                try {
+                    dataNode = participant.getAccess();
+                    dataNode.doAbort(t);
+                } catch (RemoteException | NotBoundException e) {
+                    Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                            "Unable to contact data node at \"%s:%d\", skipping...",
+                            participant.getHostname(),
+                            participant.getPort()
+                    ));
+                }
 
+            }
         }
     }
 }

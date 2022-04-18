@@ -76,6 +76,14 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 		));
 
     	synchronized (chatroomMapLock) {
+    		if (!chatroomMap.containsKey(chatroomName)) {
+    			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+    					"Unable to verify ownership of non-existent chatroom \"%s\" for user \"%s\"",
+						chatroomName,
+						username
+				));
+    			return new Response(ResponseStatus.FAIL, "Cannot verify ownership of non-existent chatroom");
+			}
             if (chatroomMap.get(chatroomName).compareTo(username) != 0) {
             	Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
             			"Unable to verify user \"%s\" owns chatroom \"%s\"",
