@@ -8,6 +8,9 @@ import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
+import java.io.IOException;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -26,13 +29,15 @@ public class App {
         this.roomMapLock = new Object();
     }
 
-    public void go(ServerInfo serverInfo) throws RemoteException, NotBoundException {
+    public void go(ServerInfo serverInfo) throws IOException, NotBoundException {
 
         // register Data node with the central server
-        RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(), serverInfo.getCentralServerPort(), "ICentralOperations");
+        RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(),
+                serverInfo.getCentralServerPort(), "ICentralOperations");
 
         // register response contains the Operations port for the Central Server
-        RegisterResponse registerResponse = centralServer.getAccess().registerChatNode(serverInfo.getHostname(), serverInfo.getOperationsPort());
+        RegisterResponse registerResponse = centralServer.getAccess().registerChatNode(serverInfo.getHostname(),
+                serverInfo.getOperationsPort());
 
         // start operations registry
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());
@@ -44,7 +49,21 @@ public class App {
         IChatroomUserOperations userOperationsEngine = new ChatroomUserOperations(this.roomMap, this.roomMapLock, serverInfo, registerResponse.getPort());
         userRegistry.rebind("IChatroomUserOperations", userOperationsEngine);
 
-        // start TCP ports here for receiving client tcp connections for subs, likely in a new thread that can continually wait for new connections
+        // start TCP ports here for receiving client tcp connections for subs,g
+        // likely in a new thread that can continually wait for new connections
+        ServerSocket chatserver = new ServerSocket(serverInfo.getTcpPort());
+
+        while(true){
+            Socket client = chatserver.accept();
+            //Recieve message from client
+
+            //Find chatroom client is looking to join
+
+            //Subscribe client socket to matching chatroom
+
+        }
+
+
 
         System.out.println(ThreadSafeStringFormatter.format(
                 "Chat Server %s is ready",

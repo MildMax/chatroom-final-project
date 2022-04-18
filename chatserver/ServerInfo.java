@@ -10,7 +10,8 @@ public class ServerInfo {
     private final int rmiPort;
     private final int operationsPort;
 
-    ServerInfo(String id, String centralServerHostname, int centralServerPort, String hostname, int tcpPort, int rmiPort, int operationsPort) {
+    ServerInfo(String id, String centralServerHostname, int centralServerPort,
+               String hostname, int tcpPort, int rmiPort, int operationsPort) {
         this.id = id;
         this.centralServerHostname = centralServerHostname;
         this.centralServerPort = centralServerPort;
