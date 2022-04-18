@@ -2,7 +2,6 @@ package centralserver;
 
 import data.*;
 import util.RMIAccess;
-
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.List;

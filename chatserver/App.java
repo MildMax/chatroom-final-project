@@ -1,6 +1,6 @@
 package chatserver;
 
-import gdata.ICentralOperations;
+import data.ICentralOperations;
 import data.IChatroomOperations;
 import data.IChatroomUserOperations;
 import data.RegisterResponse;
@@ -32,10 +32,12 @@ public class App {
     public void go(ServerInfo serverInfo) throws IOException, NotBoundException {
 
         // register Data node with the central server
-        RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(), serverInfo.getCentralServerPort(), "ICentralOperations");
+        RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(),
+                serverInfo.getCentralServerPort(), "ICentralOperations");
 
         // register response contains the Operations port for the Central Server
-        RegisterResponse registerResponse = centralServer.getAccess().registerChatNode(serverInfo.getHostname(), serverInfo.getOperationsPort());
+        RegisterResponse registerResponse = centralServer.getAccess().registerChatNode(serverInfo.getHostname(),
+                serverInfo.getOperationsPort());
 
         // start operations registry
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());

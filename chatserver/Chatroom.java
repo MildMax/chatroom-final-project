@@ -24,8 +24,6 @@ public class Chatroom {
 
     public void Subscribe(Socket s) {
         synchronized (subscriberListLock) {
-            //Connect Subscriber message input to Socket passed in. 
-            
             subscriberList.add(s);
         }
 
@@ -33,8 +31,6 @@ public class Chatroom {
 
     public void Publish(String message) {
         synchronized (subscriberListLock) {
-            // do pub here
-            
             // Pattern: Publisher send via Input Channel/RMI Registry -> Message Broker(Chatroom Server) -> Message Broker sends messages via Ouput Channel to Subsribers
 
             for (Socket client : subscriberList) {
@@ -52,7 +48,8 @@ public class Chatroom {
 
             //Send Message to Input Channel (Socket)
            
-            
+            7;'l/.p[
+        [o/o'
             //Have Output Channel Send Out messages to various subscribers.
         }
 
