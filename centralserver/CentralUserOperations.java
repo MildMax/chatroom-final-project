@@ -328,7 +328,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         		}
         		synchronized(waitObject) {
         			try {
-						waitObject.wait();
+						waitObject.wait(1000);
 					} catch (InterruptedException e) {
 						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
                                 "Something went wrong with the wait \"%s\"",
@@ -497,7 +497,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         		}
         		synchronized(waitObject) {
         			try {
-						waitObject.wait();
+						waitObject.wait(1000);
 					} catch (InterruptedException e) {
 						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
                                 "Something went wrong with the wait \"%s\"",

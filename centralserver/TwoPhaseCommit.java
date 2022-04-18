@@ -108,7 +108,7 @@ public class TwoPhaseCommit {
                 }
                 synchronized(waitObject) {
                     try {
-                        waitObject.wait();
+                        waitObject.wait(1000);
                     } catch (InterruptedException e) {
                         Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
                                 "Something went wrong with the wait \"%s\"",
