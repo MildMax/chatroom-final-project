@@ -37,14 +37,5 @@ public interface IDataParticipant extends Remote {
      * @throws RemoteException if there is an error during RPC communication
      */
     void doAbort(Transaction t) throws RemoteException;
-    
-    /**
-     * Does the commit of actually writing to the file system.
-     * @param fileName filename of file to edit
-     * @param data to write
-     * @return if write was successful
-     * @throws RemoteException if there is an error during RPC communication
-     */
-    boolean writeFile(String fileName, String data) throws RemoteException;
 
 }

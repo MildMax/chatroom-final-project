@@ -379,6 +379,42 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 		return chatroomExists;
 	}
 
+	private boolean isUserVerified(String username, String password) {
+		for (RMIAccess<IDataOperations> nodeAccessor : this.dataNodesOperations) {
+			try {
+				Response response = nodeAccessor.getAccess().verifyUser(username, password);
+				if (response.getStatus() == ResponseStatus.OK) {
+					return true;
+				}
+			} catch (NotBoundException | RemoteException e) {
+				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						"Unable to contact data node at \"%s:%d\"; skipping",
+						nodeAccessor.getHostname(),
+						nodeAccessor.getPort()
+				));
+			}
+		}
+		return false;
+	}
+
+	private boolean isUserOwner(String chatroomName, String username) {
+		for (RMIAccess<IDataOperations> nodeAccessor : this.dataNodesOperations) {
+			try {
+				Response response = nodeAccessor.getAccess().verifyOwnership(chatroomName, username);
+				if (response.getStatus() == ResponseStatus.OK) {
+					return true;
+				}
+			} catch (NotBoundException | RemoteException e) {
+				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						"Unable to contact data node at \"%s:%d\"; skipping",
+						nodeAccessor.getHostname(),
+						nodeAccessor.getPort()
+				));
+			}
+		}
+		return false;
+	}
+
 	@Override
     public Response deleteChatroom(String chatroomName, String username, String password) throws RemoteException {
 
@@ -390,144 +426,173 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 		));
 
     	String errorMessage = "";
-        boolean chatroomExists = false;
         int votesYes = 0;
         int nodesContacted = 0;
         Response response;
         
         synchronized (this.dataNodeOperationsLock) {
+
+			boolean chatroomExists = false;
+			boolean userVerified = false;
+			boolean userOwns = false;
+
 			chatroomExists = isChatroomExists(chatroomName);
+
+			if (!chatroomExists) {
+				errorMessage = "Chatroom doesn't exist";
+				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						errorMessage,
+						chatroomName
+				));
+				return new Response(ResponseStatus.FAIL, errorMessage);
+			}
+
+			userVerified = isUserVerified(username, password);
+
+			if (!userVerified) {
+				errorMessage = "Unable to verify user";
+				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						"Could not verify user \"%s\" for create chatroom \"%s\"",
+						username,
+						chatroomName
+				));
+				return new Response(ResponseStatus.FAIL, errorMessage);
+			}
+
+			userOwns = isUserOwner(chatroomName, username);
+
+			if (!userOwns) {
+				errorMessage = "User does not own this chatroom";
+				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						"User \"%s\" attempted to delete chatroom \"%s\" that they do not own",
+						username,
+						chatroomName
+				));
+				return new Response(ResponseStatus.FAIL, errorMessage);
+			}
 		}
 
-        if (!chatroomExists) {
-    		errorMessage = "Chatroom doesn't exist";
-    		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                    errorMessage,
-                    chatroomName
-            ));
-    		return new Response(ResponseStatus.FAIL, errorMessage);
-    	} else {
-    		Transaction t = new Transaction(Operations.DELETECHATROOM, chatroomName, username);
+		Transaction t = new Transaction(Operations.DELETECHATROOM, chatroomName, username);
 
-    		coordinator.setCoordinatorDecision(t, Ack.NA);
+		coordinator.setCoordinatorDecision(t, Ack.NA);
 
-            // if there's an error, create a string for errorMessage to send back to the client
-            synchronized (dataNodeParticipantsLock) {
-				// Attempt a canCommit
-				for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
-					IDataParticipant dataNode;
-					try {
-						dataNode = participant.getAccess();
-					} catch (NotBoundException e) {
-						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-								"Unable to contact participant data node at \"%s:%d\"",
-								participant.getHostname(),
-								participant.getPort()
-						));
-						continue;
-					}
-
-					// Make sure everyone votes yes.
-					if (dataNode.canCommit(t, participant) == Ack.YES) {
-						Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-								"Participant node at \"%s:%d\" voted YES",
-								participant.getHostname(),
-								participant.getPort()
-						));
-						votesYes++;
-						nodesContacted++;
-					} else {
-						// If we get a no or NA vote, just stop looping
-						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-								"Participant node at \"%s:%d\" voted NO",
-								participant.getHostname(),
-								participant.getPort()
-						));
-						nodesContacted++;
-					}
-				}
-            }
-            if (votesYes == nodesContacted) {
-            	// Roll the inner create chatroom THEN doCommit
-            	response = innerDeleteChatroom(chatroomName);
-            	
-            	// If we can't advance, 
-            	if (response.getStatus() == ResponseStatus.FAIL) {
-            		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-            				"Unable to delete resources for transaction \"%s\", forcing abort",
-							t.toString()
+		// if there's an error, create a string for errorMessage to send back to the client
+		synchronized (dataNodeParticipantsLock) {
+			// Attempt a canCommit
+			for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+				IDataParticipant dataNode;
+				try {
+					dataNode = participant.getAccess();
+				} catch (NotBoundException e) {
+					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+							"Unable to contact participant data node at \"%s:%d\"",
+							participant.getHostname(),
+							participant.getPort()
 					));
-					coordinator.setCoordinatorDecision(t, Ack.NO);
-					TwoPhaseCommit.forceAbort(t, dataNodesParticipants);
-					coordinator.removeCoordinatorDecision(t);
-					return response;
-            	}
+					continue;
+				}
 
-            	coordinator.setCoordinatorDecision(t, Ack.YES);
-            	
-        		Object waitObject = new Object();
-        		for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
-					Thread commitThread;
-					try {
-						commitThread = new Thread(new Runnable() {
-							IDataParticipant dataNode = participant.getAccess();
-							@Override
-							public void run() {
-								try {
-									dataNode.doCommit(t, participant);
-								} catch (RemoteException e) {
-									Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-											"Something went wrong starting a thread at %s",
-											participant.getHostname()
-									));
-								}
+				// Make sure everyone votes yes.
+				if (dataNode.canCommit(t, participant) == Ack.YES) {
+					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+							"Participant node at \"%s:%d\" voted YES",
+							participant.getHostname(),
+							participant.getPort()
+					));
+					votesYes++;
+					nodesContacted++;
+				} else {
+					// If we get a no or NA vote, just stop looping
+					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+							"Participant node at \"%s:%d\" voted NO",
+							participant.getHostname(),
+							participant.getPort()
+					));
+					nodesContacted++;
+				}
+			}
+		}
+		if (votesYes == nodesContacted) {
+			// Roll the inner create chatroom THEN doCommit
+			response = innerDeleteChatroom(chatroomName);
+
+			// If we can't advance,
+			if (response.getStatus() == ResponseStatus.FAIL) {
+				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						"Unable to delete resources for transaction \"%s\", forcing abort",
+						t.toString()
+				));
+				coordinator.setCoordinatorDecision(t, Ack.NO);
+				TwoPhaseCommit.forceAbort(t, dataNodesParticipants);
+				coordinator.removeCoordinatorDecision(t);
+				return response;
+			}
+
+			coordinator.setCoordinatorDecision(t, Ack.YES);
+
+			Object waitObject = new Object();
+			for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
+				Thread commitThread;
+				try {
+					commitThread = new Thread(new Runnable() {
+						IDataParticipant dataNode = participant.getAccess();
+						@Override
+						public void run() {
+							try {
+								dataNode.doCommit(t, participant);
+							} catch (RemoteException e) {
+								Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+										"Something went wrong starting a thread at %s",
+										participant.getHostname()
+								));
 							}
-						});
-					} catch (Exception e) {
-						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-								"Unable to contact participant data node at \"%s:%d\", skipping...",
-								participant.getHostname(),
-								participant.getPort()
-						));
-						continue;
-					}
+						}
+					});
+				} catch (Exception e) {
+					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+							"Unable to contact participant data node at \"%s:%d\", skipping...",
+							participant.getHostname(),
+							participant.getPort()
+					));
+					continue;
+				}
 
-					commitThread.start();
-					coordinator.addWaitCommit(t, waitObject);
-        		}
-        		synchronized(waitObject) {
-        			try {
-						waitObject.wait(1000);
-					} catch (InterruptedException e) {
-						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                                "Something went wrong with the wait \"%s\"",
-                                e
-                        ));
-						return new ChatroomResponse(ResponseStatus.FAIL, "Something went wrong, please try again");
-					}
-        		}
-        		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                        "Deleted chatrooom \"%s\" by \"%s\" successfully",
-                        chatroomName, username
-                ));
+				commitThread.start();
+				coordinator.addWaitCommit(t, waitObject);
+			}
+			synchronized(waitObject) {
+				try {
+					waitObject.wait(1000);
+				} catch (InterruptedException e) {
+					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+							"Something went wrong with the wait \"%s\"",
+							e
+					));
+					return new ChatroomResponse(ResponseStatus.FAIL, "Something went wrong, please try again");
+				}
+			}
+			Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+					"Deleted chatrooom \"%s\" by \"%s\" successfully",
+					chatroomName, username
+			));
 
-        		coordinator.removeCoordinatorDecision(t);
+			coordinator.removeCoordinatorDecision(t);
 
-        		// Everything went well, return the response.
-        		return response;
-        	} else {
-            	coordinator.setCoordinatorDecision(t, Ack.NO);
-        		TwoPhaseCommit.forceAbort(t, dataNodesParticipants);
-        		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                        "Unable to delete chatroom \"%s\"",
-                        chatroomName
-                ));
+			// Everything went well, return the response.
+			return response;
+		} else {
+			coordinator.setCoordinatorDecision(t, Ack.NO);
+			TwoPhaseCommit.forceAbort(t, dataNodesParticipants);
+			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					"Unable to delete chatroom \"%s\"",
+					chatroomName
+			));
 
-        		coordinator.removeCoordinatorDecision(t);
-        		// We did an abort, send a fail message
-        		return new ChatroomResponse(ResponseStatus.FAIL, "Something went wrong, please try again");
-        	}
-    	}
+			coordinator.removeCoordinatorDecision(t);
+			// We did an abort, send a fail message
+			return new ChatroomResponse(ResponseStatus.FAIL, "Something went wrong, please try again");
+		}
+
 	}
 
     @Override

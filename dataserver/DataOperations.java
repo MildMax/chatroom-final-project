@@ -9,6 +9,7 @@ import util.ThreadSafeStringFormatter;
 import javax.swing.plaf.TableHeaderUI;
 import java.io.*;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Map;
@@ -20,6 +21,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
     private final Object chatroomMapLock;
     private final Object userMapLock;
     private final ServerInfo serverInfo;
+    private final Path dir;
 
     public DataOperations(Map<String, String> userMap, Object userMapLock, Map<String, String> chatroomMap, Object channelMapLock, ServerInfo serverInfo) throws RemoteException {
         this.userMap = userMap;
@@ -27,6 +29,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 		this.chatroomMapLock = channelMapLock;
         this.userMapLock = userMapLock;
         this.serverInfo = serverInfo;
+		this.dir =  Paths.get("files_" + serverInfo.getId() + "/");
     }
 
     @Override
@@ -117,6 +120,28 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 	public void deleteChatroom(String chatroomName) {
 		synchronized (chatroomMapLock) {
 			chatroomMap.remove(chatroomName);
+
+			String filename = dir.resolve("chatrooms.txt").toString();
+
+			try {
+				// Creates the file if it doesn't exist, if it does exist it will append to the file.
+				FileWriter file = new FileWriter(filename, false);
+				BufferedWriter writer = new BufferedWriter(file);
+				for (String cName : chatroomMap.keySet()) {
+					writer.write(ThreadSafeStringFormatter.format(
+							"%s:%s",
+							cName,
+							chatroomMap.get(cName)
+					));
+					writer.newLine();
+				}
+				writer.close();
+			} catch (IOException e) {
+				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						"Something went very wrong writing to file %s",
+						filename
+				));
+			}
 		}
 	}
 
@@ -131,8 +156,27 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 
 	public void createChatroom(String chatroomName, String username) {
 		synchronized(chatroomMapLock) {
-			if (!chatroomMap.containsKey(username)) {
+			if (!chatroomMap.containsKey(chatroomName)) {
 				chatroomMap.put(chatroomName, username);
+				File chatLog = new File(dir.toString() + "/" + chatroomName + ".txt");
+				try {
+					if (chatLog.createNewFile()) {
+						Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+								"Successfully created new chat log file for chatroom \"%s\"",
+								chatroomName
+						));
+					} else {
+						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+								"Unable to create new chat log file for chatroom \"%s\"",
+								chatroomName
+						));
+					}
+				} catch (IOException e) {
+					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+							"There was an error when creating chat log file for chatroom \"%s\"",
+							chatroomName
+					));
+				}
 			}
 		}
 	}
