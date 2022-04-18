@@ -93,11 +93,6 @@ public class App {
         IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId(), (DataOperations) operationsEngine);
         participantRegistry.rebind("IDataParticipant", participantEngine);
         
-        Transaction t = new Transaction(Operations.CREATECHATROOM,"hello", "pass");
-        Transaction t1 = new Transaction(Operations.DELETECHATROOM,"hello", "pass");
-        participantEngine.doCommit(t, null);
-        participantEngine.doCommit(t1, null);
-        
         System.out.println(ThreadSafeStringFormatter.format(
                 "Data server %s is ready",
                 serverInfo.getId()

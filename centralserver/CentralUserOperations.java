@@ -164,7 +164,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     }
 
     @Override
-    public List<String> listChatrooms() throws RemoteException {
+    public ChatroomListResponse listChatrooms() throws RemoteException {
 
     	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
     			"Received request for list of chatrooms from user at \"%s\"",
@@ -190,7 +190,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                 }
             }
         }
-        return chatroomList;
+        return new ChatroomListResponse(chatroomList);
     }
 
     @Override

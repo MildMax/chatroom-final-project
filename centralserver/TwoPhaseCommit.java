@@ -67,8 +67,11 @@ public class TwoPhaseCommit {
                         ));
                     }
                 } catch (RemoteException e) {
+                    Logger.writeErrorToLog(e.getMessage());
                     Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                            "Unable to contact participant node at \"%s:%d\", skipping..."
+                            "Unable to contact participant node at \"%s:%d\", skipping...",
+                            participant.getHostname(),
+                            participant.getPort()
                     ));
                 }
             }

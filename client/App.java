@@ -1,6 +1,7 @@
 package client;
 
 import data.ICentralUserOperations;
+import data.Response;
 import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
@@ -13,14 +14,17 @@ public class App {
     public App(){}
 
     public void go(ServerInfo serverInfo) throws RemoteException, NotBoundException {
-        RMIAccess<ICentralUserOperations> centralServerAccessor = new RMIAccess<>(serverInfo.getCentralHost(),
-                                                                                    serverInfo.getCentralPort(),
-                                                                                    "ICentralUserOperations");
 
-        // central server accessor can be used to retrieve all information about available chatrooms, servers
-        // ports, etc
-        // this is a sample call to ensure the components are connecting
-        centralServerAccessor.getAccess().login("sampleusername", "samplepassword");
+        // used for debugging purposes
+        if (serverInfo.getIsTest()) {
+            Test t = new Test();
+            t.go(serverInfo);
+            return;
+        }
+
+        RMIAccess<ICentralUserOperations> centralServerAccessor = new RMIAccess<>(serverInfo.getCentralHost(),
+                serverInfo.getCentralPort(),
+                "ICentralUserOperations");
     }
 
     public static void main(String[] args) {
@@ -48,7 +52,11 @@ public class App {
 
     public static ServerInfo parseCommandLineArgs(String[] args) throws IllegalArgumentException {
 
-        if (args.length != 2) {
+        boolean isTest = false;
+
+        if (args.length == 3 && args[2].compareTo("-t") == 0) {
+            isTest = true;
+        } else if (args.length != 2) {
             throw new IllegalArgumentException(ThreadSafeStringFormatter.format(
                     "Expected 2 arguments <central hostname> <central port>, received \"%d\" arguments",
                     args.length
@@ -65,7 +73,7 @@ public class App {
             ));
         }
 
-        return new ServerInfo(args[0], centralPort);
+        return new ServerInfo(args[0], centralPort, isTest);
 
     }
 

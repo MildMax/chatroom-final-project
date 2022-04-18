@@ -1,5 +1,6 @@
 package util;
 
+import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.rmi.NotBoundException;
@@ -7,7 +8,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
-public class RMIAccess<K> {
+public class RMIAccess<K> implements Serializable {
 
     private String interfaceName;
     private String hostname;
