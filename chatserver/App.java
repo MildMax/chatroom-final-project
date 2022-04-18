@@ -56,7 +56,7 @@ public class App {
         while(true){
             Socket client = chatserver.accept();
             //Recieve message from client
-            client.
+
             //Find chatroom client is looking to join
 
             //Subscribe client socket to matching chatroom
