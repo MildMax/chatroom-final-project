@@ -31,6 +31,14 @@ public class Chatroom {
 
     public void unsubscribe(String username) {
         synchronized (socketMapLock) {
+            Socket s = socketMap.get(username);
+            try {
+                s.close();
+            } catch (IOException e) {
+                CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                        "There was an error closing the socket for user \"%s\""
+                ));
+            }
             this.socketMap.remove(username);
         }
     }

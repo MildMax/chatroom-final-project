@@ -125,8 +125,16 @@ public class App {
                         ));
                     } else {
                         System.out.println("Joining chatroom...");
-                        Chat chat = new Chat(username, chatroomName, r.getAddress(), r.getTcpPort(), r.getRegistryPort(), centralServerAccessor);
+                        Object chatWait = new Object();
+                        Chat chat = new Chat(username, chatroomName, r.getAddress(), r.getTcpPort(), r.getRegistryPort(), centralServerAccessor, chatWait);
                         chat.start();
+                        synchronized (chatWait) {
+                            try {
+                                chatWait.wait();
+                            } catch (InterruptedException e) {
+                                Logger.writeErrorToLog("Wait while chat window was active was interrupted");
+                            }
+                        }
                     }
                 }
                 else if (in.compareTo("2") == 0) {
@@ -156,8 +164,16 @@ public class App {
                         ));
                     } else {
                         System.out.println("Joining new chatroom...");
-                        Chat chat = new Chat(username, chatroomName, r.getAddress(), r.getTcpPort(), r.getRegistryPort(), centralServerAccessor);
+                        Object chatWait = new Object();
+                        Chat chat = new Chat(username, chatroomName, r.getAddress(), r.getTcpPort(), r.getRegistryPort(), centralServerAccessor, chatWait);
                         chat.start();
+                        synchronized (chatWait) {
+                            try {
+                                chatWait.wait();
+                            } catch (InterruptedException e) {
+                                Logger.writeErrorToLog("Wait while chat window was active was interrupted");
+                            }
+                        }
                     }
 
                 }
@@ -196,6 +212,7 @@ public class App {
         System.out.println("Goodbye!");
 
         input.close();
+        System.exit(0);
     }
 
     public static void main(String[] args) {

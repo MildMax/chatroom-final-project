@@ -28,17 +28,19 @@ class Chat extends JFrame implements ActionListener {
     private static String hostname;
     private static int tcpPort;
     private static int rmiPort;
+    private static Object chatWait;
     private static RMIAccess<IChatroomUserOperations> chatroomAccessor;
     private static RMIAccess<ICentralUserOperations> centralServer;
 
     // default constructor
-    public Chat(String username, String chatroomName, String hostname, int tcpPort, int rmiPort, RMIAccess<ICentralUserOperations> centralServer){
+    public Chat(String username, String chatroomName, String hostname, int tcpPort, int rmiPort, RMIAccess<ICentralUserOperations> centralServer, Object chatWait){
         Chat.username = username;
         Chat.chatroomName = chatroomName;
         Chat.hostname = hostname;
         Chat.tcpPort = tcpPort;
         Chat.rmiPort = rmiPort;
         Chat.centralServer = centralServer;
+        Chat.chatWait = chatWait;
     }
 
     // main class
@@ -105,10 +107,37 @@ class Chat extends JFrame implements ActionListener {
         Socket s = Chat.establishSocket();
 
         // start receiving messages from server
-        new Thread(new ReceiveThread(s)).start();
+        Thread receiveThread = new Thread(new ReceiveThread(s));
+        receiveThread.start();
 
         // set up accessor
         Chat.chatroomAccessor = new RMIAccess<>(Chat.hostname, Chat.rmiPort, "IChatroomUserOperations");
+        try {
+            Chat.chatroomAccessor.getAccess().joinChatroom(Chat.chatroomName, Chat.username);
+        } catch (RemoteException | NotBoundException e) {
+            Logger.writeErrorToLog("Unable to signal join chatroom message");
+        }
+
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                try {
+                    Chat.chatroomAccessor.getAccess().leaveChatroom(Chat.chatroomName, Chat.username);
+                } catch (RemoteException | NotBoundException err) {
+                    Logger.writeErrorToLog("Unable to access chatroom server for leave operation");
+                }
+                receiveThread.interrupt();
+                try {
+                    s.close();
+                } catch (IOException ioException) {
+                    Logger.writeErrorToLog("Unable to close receive socket for chat");
+                }
+                synchronized (Chat.chatWait) {
+                    chatWait.notify();
+                }
+                super.windowClosing(e);
+            }
+        });
     }
 
     // if the button is pressed
