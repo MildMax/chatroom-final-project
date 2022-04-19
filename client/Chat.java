@@ -31,6 +31,7 @@ class Chat extends JFrame implements ActionListener {
     private static Object chatWait;
     private static RMIAccess<IChatroomUserOperations> chatroomAccessor;
     private static RMIAccess<ICentralUserOperations> centralServer;
+    private static final Object reestablishLock = new Object();
 
     // default constructor
     public Chat(String username, String chatroomName, String hostname, int tcpPort, int rmiPort, RMIAccess<ICentralUserOperations> centralServer, Object chatWait){
@@ -149,7 +150,9 @@ class Chat extends JFrame implements ActionListener {
 
             // send message to server via RMI accessor
             try {
-                chatroomAccessor.getAccess().chat(chatroomName, username, textEntry.getText());
+                synchronized (Chat.reestablishLock) {
+                    chatroomAccessor.getAccess().chat(chatroomName, username, textEntry.getText());
+                }
                 // set the text of field to blank
                 textEntry.setText("");
             } catch (RemoteException | NotBoundException err) {
@@ -158,14 +161,13 @@ class Chat extends JFrame implements ActionListener {
                         err.getMessage()
                 ));
             }
-
-
         }
     }
 
     static class ReceiveThread implements Runnable {
 
         private Socket receiveSocket;
+        BufferedReader socketReader;
 
         ReceiveThread(Socket s) {
             this.receiveSocket = s;
@@ -173,53 +175,55 @@ class Chat extends JFrame implements ActionListener {
 
         @Override
         public void run() {
-
-            BufferedReader socketReader = null;
             try {
-                socketReader = new BufferedReader(new InputStreamReader(this.receiveSocket.getInputStream()));
+                this.socketReader = new BufferedReader(new InputStreamReader(this.receiveSocket.getInputStream()));
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
-            String message;
-            try {
-                Logger.writeMessageToLog("startin");
-                while ((message = socketReader.readLine()) != null) {
-                    Logger.writeMessageToLog("firing");
-
-                    // write display to the main part of the window
-                    textDisplay.setText(textDisplay.getText() + "\n" + message);
-                }
-            }
-            catch (IOException e) {
-                Logger.writeErrorToLog("Lost connection with chatroom server; reestablishing connection...");
+            while(true) {
+                String message;
                 try {
-                    ChatroomResponse r = centralServer.getAccess().reestablishChatroom(Chat.chatroomName, Chat.username);
-                    if (r.getStatus() == ResponseStatus.FAIL) {
-                        // exit out of this class
-                        frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
-                        return;
+                    Logger.writeMessageToLog("startin");
+                    while ((message = socketReader.readLine()) != null) {
+                        Logger.writeMessageToLog("firing");
+
+                        // write display to the main part of the window
+                        textDisplay.setText(textDisplay.getText() + "\n" + message);
                     }
+                } catch (IOException e) {
+                    synchronized (Chat.reestablishLock) {
+                        Logger.writeErrorToLog("Lost connection with chatroom server; reestablishing connection...");
+                        try {
+                            ChatroomResponse r = centralServer.getAccess().reestablishChatroom(Chat.chatroomName, Chat.username);
+                            if (r.getStatus() == ResponseStatus.FAIL) {
+                                Logger.writeErrorToLog("Failed to reestablish connection with chatroom");
+                                // exit out of this class
+                                frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
+                                return;
+                            }
 
-                    Chat.hostname = r.getAddress();
-                    Chat.rmiPort = r.getRegistryPort();
-                    Chat.tcpPort = r.getTcpPort();
+                            Chat.hostname = r.getAddress();
+                            Chat.rmiPort = r.getRegistryPort();
+                            Chat.tcpPort = r.getTcpPort();
 
-                    Chat.chatroomAccessor = new RMIAccess<>(Chat.hostname, Chat.rmiPort, "IChatroomUserOperations");
-                    this.receiveSocket = Chat.establishSocket();
+                            Chat.chatroomAccessor = new RMIAccess<>(Chat.hostname, Chat.rmiPort, "IChatroomUserOperations");
+                            this.receiveSocket = Chat.establishSocket();
+                            if (this.receiveSocket == null) {
+                                throw new IOException("Unable to establish new receive socket");
+                            }
 
-                    if (this.receiveSocket == null) {
-                        throw new IOException("Unable to establish new receive socket");
+                            this.socketReader = new BufferedReader(new InputStreamReader(this.receiveSocket.getInputStream()));
+
+                        } catch (NotBoundException | IOException err) {
+                            Logger.writeErrorToLog("Unable to reestablish chatroom central server; closing window...");
+                            frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
+                            return;
+                        }
+                        Logger.writeMessageToLog("Reestablished connection to chatroom server");
                     }
-
-                } catch (NotBoundException | IOException err) {
-                    Logger.writeErrorToLog("Unable to reestablish chatroom central server; closing window...");
-                    frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
-                    return;
                 }
-                Logger.writeMessageToLog("Reestablished connection to chatroom server");
             }
-
         }
     }
 
