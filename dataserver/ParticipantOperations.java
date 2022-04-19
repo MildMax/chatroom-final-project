@@ -1,7 +1,7 @@
 package dataserver;
 
 import data.*;
-import util.Logger;
+import util.CristiansLogger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
@@ -16,9 +16,7 @@ import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class ParticipantOperations extends UnicastRemoteObject implements IDataParticipant {
 
@@ -44,7 +42,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     @Override
     public Ack canCommit(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException {
 
-		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+		CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 				"Received canCommit on transaction \"%s\"",
 				t.toString()
 		));
@@ -74,7 +72,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     @Override
     public void doCommit(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException {
 
-		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+		CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 				"Received doCommit on transaction \"%s\"",
 				t.toString()
 		));
@@ -86,7 +84,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     		case CREATEUSER:
     			if (operationsEngine.userExists(t.getKey())) {
     				// enforce at most once semantics if multiple concurrent requests are received
-					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+					CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 							"User \"%s\" already been created in concurrent transaction",
 							t.getKey()
 					));
@@ -99,7 +97,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     		case CREATECHATROOM:
     			if (operationsEngine.chatroomExists(t.getKey())) {
     				// enforce at most once semantics if multiple concurrent requests are received
-					Logger.writeMessageToLog("Chatroom \"%s\" has already been created in concurrent transaction");
+					CristiansLogger.writeMessageToLog("Chatroom \"%s\" has already been created in concurrent transaction");
 					break;
 				}
     			// Chatroom ownership is stored in the format chatroom:user
@@ -109,18 +107,18 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     		case DELETECHATROOM:
 				if (!operationsEngine.chatroomExists(t.getKey())) {
 					// enforce at most once semantics if multiple concurrent requests are received
-					Logger.writeMessageToLog("Chatroom \"%s\" has already been deleted in concurrent transaction");
+					CristiansLogger.writeMessageToLog("Chatroom \"%s\" has already been deleted in concurrent transaction");
 					break;
 				}
 				File chatroom = new File(dir.resolve("chatlogs/" + t.getKey()).toString() + ".txt");
 				operationsEngine.deleteChatroom(t.getKey());
 				if (chatroom.delete()) {
-					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+					CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 							"Deleted chatroom %s", 
 							t.getKey()
 				));
 				} else {
-					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
 							"Can't delete chatroom %s", 
 							t.getKey()
 							));
@@ -130,7 +128,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     			writeFile("chatlogs/" + t.getKey() + ".txt", t.getValue());
     			break;
     		default:
-    			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+    			CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
     					"Unable to operate on invalid command \"%s\"",
 						t.getOp().toString()
 				));
@@ -143,7 +141,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 			coord = coordinator.getAccess();
 			coord.haveCommitted(t, p);
 		} catch (RemoteException | NotBoundException e) {
-			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+			CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
 					"Unable to contact coordinator at \"%s:%d\"",
 					coordinatorHostname,
 					coordinatorPort
@@ -161,7 +159,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 			th.setFinished();
 		}
 
-		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+		CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 				"Received doAbort on transaction \"%s\"",
 				t.toString()
 		));
@@ -184,7 +182,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 			writer.close();
 			return true;
 		} catch (IOException e) {
-			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+			CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
 					"Something went very wrong writing to file %s",
 					fileName
 					));

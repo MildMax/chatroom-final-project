@@ -2,7 +2,7 @@ package chatserver;
 
 import data.*;
 import util.ClientIPUtil;
-import util.Logger;
+import util.CristiansLogger;
 import util.ThreadSafeStringFormatter;
 
 import java.rmi.RemoteException;
@@ -26,7 +26,7 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
     @Override
     public Response createChatroom(String name) throws RemoteException {
 
-        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+        CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
                 "Received createChatroom request for chatroom \"%s\"",
                 name
         ));
@@ -34,7 +34,7 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
         synchronized (roomListLock) {
             for (String roomName : roomList.keySet()) {
                 if (roomName.compareTo(name) == 0) {
-                    Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                    CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
                             "Chatroom with name \"%s\" already exists",
                             name
                     ));
@@ -44,7 +44,7 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
 
             roomList.put(name, new Chatroom(name));
 
-            Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+            CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
                     "Successfully created chatroom \"%s\"",
                     name
             ));
@@ -56,7 +56,7 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
     @Override
     public Response deleteChatroom(String name) throws RemoteException {
 
-        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+        CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
                 "Received deleteChatroom request for chatroom \"%s\" from node at \"%s\"",
                 name,
                 ClientIPUtil.getClientIP()
@@ -71,7 +71,7 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
     @Override
     public ChatroomDataResponse getChatroomData() throws RemoteException {
 
-        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+        CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
                 "Received getChatroomData request from node at \"%s\"",
                 ClientIPUtil.getClientIP()
         ));
@@ -89,7 +89,7 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
     @Override
     public ChatroomListResponse getChatrooms() throws RemoteException {
 
-        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+        CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
                 "Recived getChatrooms request from node at \"%s\"",
                 ClientIPUtil.getClientIP()
         ));

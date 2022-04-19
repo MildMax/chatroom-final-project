@@ -82,7 +82,7 @@ public class App {
 
     public static void main(String[] args) {
 
-        Logger.serverLoggerSetup("CentralServer");
+        Logger.loggerSetup("CentralServer");
         ServerInfo serverInfo = null;
         try {
             serverInfo = App.parseCommandLineArguments(args);

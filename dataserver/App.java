@@ -3,10 +3,8 @@ package dataserver;
 import data.ICentralOperations;
 import data.IDataOperations;
 import data.IDataParticipant;
-import data.Operations;
 import data.RegisterResponse;
-import data.Transaction;
-import util.Logger;
+import util.CristiansLogger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
@@ -42,6 +40,34 @@ public class App {
         // register Data node with the central server
         RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(), serverInfo.getCentralServerPort(), "ICentralOperations");
 
+        // initiate Cristians algorithm thread
+        CristiansLogger.setCentralAccessor(centralServer);
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // run Cristians for the duration of program
+                // run immediately and then wait
+                while(true) {
+                    try {
+                        CristiansLogger.cristiansAlgorithm();
+                    } catch (RemoteException | NotBoundException e) {
+                        CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                "There was an error contact the Central Server for Cristian's Algorithm: \"%s\"",
+                                e.getMessage()
+                        ));
+                    }
+
+                    // run every 10 seconds
+                    try {
+                        Thread.sleep(10000);
+                    } catch (InterruptedException e) {
+                        CristiansLogger.writeErrorToLog("Wait on Cristian's algorithm thread was interrupted");
+                    }
+                }
+            }
+        });
+        t.start();
+
         // register response contains the Coordinator port for the Central Server
         RegisterResponse registerResponse = centralServer.getAccess().registerDataNode(serverInfo.getHostname(), serverInfo.getOperationsPort(), serverInfo.getParticipantPort());
 
@@ -59,7 +85,7 @@ public class App {
 					}
 					br.close();
 				} catch (IOException e) {
-					Logger.writeErrorToLog("Unable to find or create users.txt for server; shutting down server");
+					CristiansLogger.writeErrorToLog("Unable to find or create users.txt for server; shutting down server");
 					return;
 				}
         }
@@ -78,7 +104,7 @@ public class App {
 				}
 				br.close();
 			} catch (IOException e) {
-                Logger.writeErrorToLog("Unable to find or create chatrooms.txt for server; shutting down server");
+                CristiansLogger.writeErrorToLog("Unable to find or create chatrooms.txt for server; shutting down server");
                 return;
 			}
         }
@@ -87,7 +113,7 @@ public class App {
         File chatLogdir = new File("files_" + serverInfo.getId() + "/chatlogs");
         if (!chatLogdir.exists()) {
             if (!chatLogdir.mkdir()) {
-                Logger.writeErrorToLog("Unable to create chatLogs subdirectory");
+                CristiansLogger.writeErrorToLog("Unable to create chatLogs subdirectory");
                 return;
             }
         }
@@ -118,7 +144,7 @@ public class App {
             return;
         }
 
-        Logger.serverLoggerSetup(ThreadSafeStringFormatter.format("DataNode%s", serverInfo.getId()));
+        CristiansLogger.loggerSetup(ThreadSafeStringFormatter.format("DataNode%s", serverInfo.getId()));
         
         // Create a directory for each server based on it's name 
         String fileDir = "files_" + serverInfo.getId() + "/";
@@ -128,7 +154,7 @@ public class App {
         try {
             app.go(serverInfo);
         } catch (RemoteException | NotBoundException e) {
-            Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+            CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
                     "Data node failed on startup with message: \"%s\"",
                     e.getMessage()
             ));

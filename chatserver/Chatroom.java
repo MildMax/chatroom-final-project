@@ -1,37 +1,65 @@
 package chatserver;
 
+import util.CristiansLogger;
+import util.ThreadSafeStringFormatter;
+
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Chatroom {
 
-    private final List<Socket> subscriberList;
-    private final Object subscriberListLock;
+    private final Map<String, Socket> socketMap;
+    private final Object socketMapLock;
     private final String roomName;
 
     public Chatroom(String roomName) {
-        this.subscriberList = new LinkedList<>();
-        this.subscriberListLock = new Object();
+        this.socketMap = new HashMap<>();
+        this.socketMapLock = new Object();
         this.roomName = roomName;
     }
 
-    public void Subscribe(Socket s) {
-        synchronized (subscriberListLock) {
-            // do sub here
+    public void subscribe(Socket s, String username) {
+        synchronized (socketMapLock) {
+            this.socketMap.put(username, s);
         }
     }
 
-    public void Publish(String message) {
-        synchronized (subscriberListLock) {
-            // do pub here
+    public void unsubscribe(String username) {
+        synchronized (socketMapLock) {
+            this.socketMap.remove(username);
+        }
+    }
+
+    public void publish(String message) {
+        synchronized (socketMapLock) {
+            for (String user : socketMap.keySet()) {
+                CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                        "Publishing message to user \"%s\"",
+                        user
+                ));
+                PrintWriter out = null;
+                try {
+                    out = new PrintWriter(new OutputStreamWriter(socketMap.get(user).getOutputStream()), true);
+                    out.println(message);
+                } catch (IOException e) {
+                    CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                            ""
+                    ));
+                }
+
+            }
         }
 
     }
 
     public int getUserCount() {
-        synchronized (subscriberListLock) {
-            return subscriberList.size();
+        synchronized (socketMapLock) {
+            return socketMap.size();
         }
     }
 

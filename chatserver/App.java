@@ -4,7 +4,7 @@ import data.ICentralOperations;
 import data.IChatroomOperations;
 import data.IChatroomUserOperations;
 import data.RegisterResponse;
-import util.Logger;
+import util.CristiansLogger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
@@ -31,6 +31,34 @@ public class App {
         // register Data node with the central server
         RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(), serverInfo.getCentralServerPort(), "ICentralOperations");
 
+        // initiate Cristians algorithm thread
+        CristiansLogger.setCentralAccessor(centralServer);
+        Thread t = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                // run Cristians for the duration of program
+                // run immediately and then wait
+                while(true) {
+                    try {
+                        CristiansLogger.cristiansAlgorithm();
+                    } catch (RemoteException | NotBoundException e) {
+                        CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                "There was an error contact the Central Server for Cristian's Algorithm: \"%s\"",
+                                e.getMessage()
+                        ));
+                    }
+
+                    // run every 10 seconds
+                    try {
+                        Thread.sleep(10000);
+                    } catch (InterruptedException e) {
+                        CristiansLogger.writeErrorToLog("Wait on Cristian's algorithm thread was interrupted");
+                    }
+                }
+            }
+        });
+        t.start();
+
         // register response contains the Operations port for the Central Server
         RegisterResponse registerResponse = centralServer.getAccess().registerChatNode(serverInfo.getHostname(), serverInfo.getOperationsPort());
 
@@ -38,6 +66,10 @@ public class App {
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());
         IChatroomOperations operationsEngine = new ChatroomOperations(roomMap, roomMapLock, serverInfo);
         operationsRegistry.rebind("IChatroomOperations", operationsEngine);
+
+        // start receive thread for socket connections
+        ReceiveTCPConnectionThread thread = new ReceiveTCPConnectionThread(serverInfo.getTcpPort(), this.roomMap, this.roomMapLock);
+        thread.start();
 
         // start RMI chat registry
         Registry userRegistry = LocateRegistry.createRegistry(serverInfo.getRmiPort());
@@ -62,13 +94,13 @@ public class App {
             return;
         }
 
-        Logger.serverLoggerSetup(ThreadSafeStringFormatter.format("ChatNode%s", serverInfo.getId()));
+        CristiansLogger.loggerSetup(ThreadSafeStringFormatter.format("ChatNode%s", serverInfo.getId()));
 
         App app = new App();
         try {
             app.go(serverInfo);
         } catch (RemoteException | NotBoundException e) {
-            Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+            CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
                     "Chat node failed on startup with message: \"%s\"",
                     e.getMessage()
             ));
