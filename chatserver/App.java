@@ -1,5 +1,6 @@
 package chatserver;
 
+import data.ChatroomUserResponse;
 import data.ICentralOperations;
 import data.IChatroomOperations;
 import data.IChatroomUserOperations;
@@ -8,7 +9,11 @@ import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.rmi.NotBoundException;
@@ -55,11 +60,13 @@ public class App {
 
         while(true){
             Socket client = chatserver.accept();
-            //Recieve message from client
 
-            //Find chatroom client is looking to join
 
-            //Subscribe client socket to matching chatroom
+            //Need to identify packet that carries client's chosen chatroom
+            ConnectChatroom connectChatroom = new ConnectChatroom(roomMap, roomMapLock, operationsEngine,
+                    client);
+
+            connectChatroom.start();
 
         }
 
@@ -146,5 +153,48 @@ public class App {
 
 
         return new ServerInfo(args[0], args[1], centralServerPort, args[3], tcpPort, rmiPort, operationsPort);
+    }
+
+
+    //Thread to spin chatrooms
+    private class ConnectChatroom extends Thread {
+        Object roomLock;
+        Map<String, Chatroom> roomMap;
+        IChatroomOperations operations;
+        Socket client;
+
+        public ConnectChatroom(Map<String, Chatroom> roomMap, Object roomLock,
+                               IChatroomOperations operations, Socket client){
+
+            this.roomMap = roomMap;
+            this.roomLock = roomLock;
+            this.operations = operations;
+            this.client = client;
+        }
+
+        public void run(){
+
+            String chatroomName = "";
+            //Find chatroom client is looking to join
+            ChatroomUserResponse chosenChatroom = null;
+            try {
+            //Use chatroom response to reference chatroom
+                chosenChatroom = operations.getChatroom(chatroomName);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
+
+            if(chosenChatroom == null){
+
+            }else{
+
+                Chatroom chatroomReference = chosenChatroom.getChatroomCarrier().getChatroom();
+                synchronized (roomMapLock){
+                    //Subscribe client socket to matching chatroom
+                    chatroomReference.Subscribe(client);
+                }
+
+            }
+        }
     }
 }

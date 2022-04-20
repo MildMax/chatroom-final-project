@@ -3,6 +3,7 @@ package chatserver;
 import data.*;
 import util.ThreadSafeStringFormatter;
 
+import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.LinkedList;
@@ -82,7 +83,10 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
                         name
                 ));
             }
-            return new ChatroomUserResponse(room.getCreatorUsername(), room.getRoomName());
+
+            //Added way to retrieve classroom
+            ChatroomCarrier roomCarrier = new ChatroomCarrier(room);
+            return new ChatroomUserResponse(room.getCreatorUsername(), room.getRoomName(), roomCarrier);
         }
     }
-}
+
