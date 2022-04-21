@@ -42,6 +42,21 @@ class Chat extends JFrame implements ActionListener {
         Chat.rmiPort = rmiPort;
         Chat.centralServer = centralServer;
         Chat.chatWait = chatWait;
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            @Override
+            public void run() {
+                // leave chatroom if shutdown with ctrl-c or other sigterm
+                try {
+                    Chat.chatroomAccessor.getAccess().leaveChatroom(Chat.chatroomName, Chat.username);
+                } catch (RemoteException | NotBoundException e) {
+                    Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                            "Failed to leave chatroom \"%s\" on sigterm shutdown",
+                            Chat.chatroomName
+                    ));
+                }
+            }
+        });
     }
 
     // main class

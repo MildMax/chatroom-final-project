@@ -91,7 +91,7 @@ public class CristiansLogger {
         // surround in lock so that this process is not licked out while attempting to calculate the local time
         synchronized (diffLock) {
             // divide the difference between end and start by 2
-            // uses formula Tlocal = Tserver + ((end - start) / 2)
+            // uses formula Tlocal = Tserver + (RTT / 2)
             calculatedTime = serverTime + ((end - start) / 2);
             localClock = System.currentTimeMillis();
 
