@@ -52,7 +52,7 @@ public class App {
                         CristiansLogger.cristiansAlgorithm();
                     } catch (RemoteException | NotBoundException e) {
                         CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                                "There was an error contact the Central Server for Cristian's Algorithm: \"%s\"",
+                                "There was an error contacting the Central Server for Cristian's Algorithm: \"%s\"",
                                 e.getMessage()
                         ));
                     }

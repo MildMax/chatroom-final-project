@@ -63,7 +63,7 @@ class Chat extends JFrame implements ActionListener {
     public void start()
     {
         // create a new frame to store text field and button
-        frame = new JFrame("textfield");
+        frame = new JFrame(Chat.chatroomName);
 
         // create a panel to add buttons and textfield
         JPanel display = new JPanel(new BorderLayout());
@@ -120,6 +120,7 @@ class Chat extends JFrame implements ActionListener {
         frame.setResizable(false);
         frame.setVisible(true);
 
+        // initialize socket
         Socket s = Chat.establishSocket();
 
         // start receiving messages from server
