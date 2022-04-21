@@ -105,7 +105,7 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
 
         synchronized (roomListLock) {
             Chatroom chatroom = this.roomList.get(chatroomName);
-            chatroom.publish(username + " has joined the chat");
+            chatroom.publish("System >> " + username + " has joined the chat");
         }
 
     }
@@ -123,7 +123,7 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
         synchronized (roomListLock) {
             Chatroom chatroom = this.roomList.get(chatroomName);
             chatroom.unsubscribe(username);
-            chatroom.publish(username + " has left the chat");
+            chatroom.publish("System >> " + username + " has left the chat");
         }
 
     }
