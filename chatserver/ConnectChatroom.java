@@ -83,7 +83,6 @@ public class ConnectChatroom extends Thread {
                 out.println("success");
             } catch (IOException e) {
                 CristiansLogger.writeErrorToLog("Unable to receive client connection on server socket");
-                System.out.println(e.getMessage());
             }
         }
 

@@ -78,8 +78,9 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 		));
 
 		decisionThreadMap.get(t.getTransactionIndex()).setFinished();
+		decisionThreadMap.remove(t.getTransactionIndex());
 
-    	// Write to physical file (call have committed) (only if transaction op is create chatroom)
+		// Write to physical file (call have committed) (only if transaction op is create chatroom)
     	switch (t.getOp()) {
     		case CREATEUSER:
     			if (operationsEngine.userExists(t.getKey())) {
@@ -114,12 +115,12 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 				operationsEngine.deleteChatroom(t.getKey());
 				if (chatroom.delete()) {
 					CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
-							"Deleted chatroom %s", 
+							"Deleted chatroom file for chatroom \"%s\"",
 							t.getKey()
 				));
 				} else {
 					CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
-							"Can't delete chatroom %s", 
+							"Failed to delete chatroom file \"%s\"",
 							t.getKey()
 							));
 				}
@@ -142,7 +143,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 			coord.haveCommitted(t, p);
 		} catch (RemoteException | NotBoundException e) {
 			CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
-					"Unable to contact coordinator at \"%s:%d\"",
+					"Unable to contact coordinator for haveCommitted at \"%s:%d\"",
 					coordinatorHostname,
 					coordinatorPort
 			));
@@ -158,6 +159,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 		if (th != null) {
 			th.setFinished();
 		}
+		decisionThreadMap.remove(t.getTransactionIndex());
 
 		CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 				"Received doAbort on transaction \"%s\"",
@@ -183,7 +185,7 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 			return true;
 		} catch (IOException e) {
 			CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
-					"Something went very wrong writing to file %s",
+					"Something went very wrong writing to file \"%s\"",
 					fileName
 					));
 			return false;

@@ -4,6 +4,7 @@ import data.ChatroomListResponse;
 import data.ChatroomResponse;
 import data.ICentralUserOperations;
 import data.Response;
+import util.Logger;
 import util.RMIAccess;
 
 import java.rmi.NotBoundException;
@@ -11,12 +12,25 @@ import java.rmi.RemoteException;
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * Testing file designed to test basic operations between the client and the central server.
+ * All output is printed to console for manual verification.
+ */
 public class Test {
 
+    /**
+     * Runs tests on basic operations between the client and the central server
+     *
+     * @param serverInfo contains information used to contact central server
+     * @throws RemoteException if there is an error contacting the central server
+     * @throws NotBoundException if the central server user operations interface cannot be found
+     */
     public void go(ServerInfo serverInfo) throws RemoteException, NotBoundException {
         RMIAccess<ICentralUserOperations> centralServerAccessor = new RMIAccess<>(serverInfo.getCentralHost(),
                 serverInfo.getCentralPort(),
                 "ICentralUserOperations");
+
+        Logger.writeMessageToLog("Starting test...");
 
         System.out.println();
 
@@ -170,7 +184,7 @@ public class Test {
                     try {
                         centralServerAccessor.getAccess().registerUser("sample_user3", "sample_password");
                     } catch (RemoteException | NotBoundException e) {
-                        e.printStackTrace();
+                        System.out.println(e.getMessage());
                     }
                 }
             });
@@ -182,7 +196,7 @@ public class Test {
             try {
                 t.join();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         }
 
@@ -198,7 +212,7 @@ public class Test {
                     try {
                         centralServerAccessor.getAccess().createChatroom("chatroom3", "sample_user");
                     } catch (RemoteException | NotBoundException e) {
-                        e.printStackTrace();
+                        System.out.println(e.getMessage());
                     }
                 }
             });
@@ -210,7 +224,7 @@ public class Test {
             try {
                 t.join();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         }
 
@@ -226,7 +240,7 @@ public class Test {
                     try {
                         centralServerAccessor.getAccess().deleteChatroom("chatroom3", "sample_user", "sample_password");
                     } catch (RemoteException | NotBoundException e) {
-                        e.printStackTrace();
+                        System.out.println(e.getMessage());
                     }
                 }
             });
@@ -238,9 +252,11 @@ public class Test {
             try {
                 t.join();
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.out.println(e.getMessage());
             }
         }
+
+        Logger.writeMessageToLog("Finished testing");
 
     }
 }

@@ -47,17 +47,16 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
             }
         }
 
+        CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Attempting to log message \"%s\" from user \"%s\" at \"%s\" for chatroom \"%s\"",
+                message,
+                username,
+                ClientIPUtil.getClientIP(),
+                message
+        ));
+
         synchronized (this.logMessageLock) {
             try {
-
-                CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                        "Attempting to log message \"%s\" from user \"%s\" at \"%s\" for chatroom \"%s\"",
-                        message,
-                        username,
-                        ClientIPUtil.getClientIP(),
-                        message
-                ));
-
                 boolean success = false;
                 // retry log until it succeeds
                 while (!success) {
@@ -75,14 +74,6 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
                         ));
                     }
                 }
-
-                CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                        "Successfully logged message \"%s\" from user \"%s\" at \"%s\" for chatroom \"%s\"",
-                        message,
-                        username,
-                        ClientIPUtil.getClientIP(),
-                        chatroomName
-                ));
             } catch (NotBoundException e) {
                 CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
                         "Unable to contact central server at \"%s:%d\"",
@@ -91,6 +82,14 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
                 ));
             }
         }
+
+        CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Successfully logged message \"%s\" from user \"%s\" at \"%s\" for chatroom \"%s\"",
+                message,
+                username,
+                ClientIPUtil.getClientIP(),
+                chatroomName
+        ));
     }
 
     @Override

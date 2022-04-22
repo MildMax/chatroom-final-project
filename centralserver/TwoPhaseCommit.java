@@ -45,6 +45,12 @@ public class TwoPhaseCommit {
     }
 
     public boolean canCommit(Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Object dataNodeParticipantsLock) {
+
+        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Initiating canCommit request on transaction \"%s\"",
+                t.toString()
+        ));
+
         List<CanCommitThread> commitThreads = new LinkedList<>();
         synchronized (dataNodeParticipantsLock) {
             for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
@@ -87,6 +93,12 @@ public class TwoPhaseCommit {
     }
 
     public void doCommit (Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Object dataNodeParticipantsLock, CentralCoordinator coordinator) {
+
+        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Initiating doCommit request on transaction \"%s\"",
+                t.toString()
+        ));
+
         Object waitObject = new Object();
         synchronized (dataNodeParticipantsLock) {
             for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
@@ -125,14 +137,21 @@ public class TwoPhaseCommit {
                 waitObject.wait(1000);
             } catch (InterruptedException e) {
                 Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                        "Something went wrong with the wait \"%s\"",
-                        e
+                        "Something went wrong with the doCommit wait on transaction \"%s\": \"%s\"",
+                        t.toString(),
+                        e.getMessage()
                 ));
             }
         }
     }
 
     public void doAbort(Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, Object dataNodeParticipantsLock) {
+
+        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Initiating doAbort on transaction \"%s\"",
+                t.toString()
+        ));
+
         synchronized (dataNodeParticipantsLock) {
             for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
                 try {

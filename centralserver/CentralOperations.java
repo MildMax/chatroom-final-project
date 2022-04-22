@@ -53,6 +53,10 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
 
         // use list of existing chatrooms tracked by data node to spin up chatrooms at available chat servers
         for (String room : chatrooms) {
+            Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                    "Spinning up existing chatroom \"%s\" from data server...",
+                    room
+            ));
             ChatroomResponse r = CentralUserOperations.innerCreateChatroom(room, this.chatroomNodeLock, this.chatroomNodes);
             if (r.getStatus() == ResponseStatus.FAIL) {
                 Logger.writeErrorToLog(ThreadSafeStringFormatter.format(

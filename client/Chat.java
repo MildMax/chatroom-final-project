@@ -1,8 +1,5 @@
 package client;
 
-// Java program to create a blank text field with a
-// given initial text and given number of columns
-import chatserver.Chatroom;
 import data.*;
 import util.Logger;
 import util.RMIAccess;
@@ -66,6 +63,9 @@ class Chat extends JFrame implements ActionListener {
     // main class
     public void start()
     {
+
+        Logger.writeMessageToLog("Setting up JSwing window...");
+
         // create a new frame to store text field and button
         frame = new JFrame(Chat.chatroomName);
 
@@ -124,24 +124,67 @@ class Chat extends JFrame implements ActionListener {
         frame.setResizable(false);
         frame.setVisible(true);
 
+        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Attempting to establish TCP connection with chat server at \"%s:%d\"...",
+                Chat.hostname,
+                Chat.tcpPort
+        ));
+
         // initialize socket
         Socket s = Chat.establishSocket();
 
         if (s == null) {
+            Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                    "Failed to establish TCP connection with chat server at \"%s:%d\"",
+                    Chat.hostname,
+                    Chat.tcpPort
+            ));
             return;
         }
+
+        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Successfully established TCP connection with chat server at \"%s:%d\"",
+                Chat.hostname,
+                Chat.tcpPort
+
+        ));
+
+        Logger.writeMessageToLog("Initiating receive thread for TCP connection...");
 
         // start receiving messages from server
         Thread receiveThread = new Thread(new ReceiveThread(s));
         receiveThread.start();
 
+        Logger.writeMessageToLog("Successfully started receive thread for TCP connection");
+
+        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Attempting to contact chat server RMI interface at \"%s:%d\"",
+                Chat.hostname,
+                Chat.rmiPort
+        ));
         // set up accessor
         Chat.chatroomAccessor = new RMIAccess<>(Chat.hostname, Chat.rmiPort, "IChatroomUserOperations");
         try {
             Chat.chatroomAccessor.getAccess().joinChatroom(Chat.chatroomName, Chat.username);
         } catch (RemoteException | NotBoundException e) {
-            Logger.writeErrorToLog("Unable to signal join chatroom message");
+            Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                    "Unable to look up chat server RMI interface at \"%s:%d\"",
+                    Chat.hostname,
+                    Chat.rmiPort
+            ));
+            try {
+                s.close();
+            } catch (IOException err) {
+                Logger.writeErrorToLog("Failed to close socket TCP connection");
+            }
+            return;
         }
+
+        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Successfully looked up RMI interface for chat server at \"%s:%d\"",
+                Chat.hostname,
+                Chat.rmiPort
+        ));
 
         frame.addWindowListener(new WindowAdapter() {
             @Override
@@ -156,11 +199,18 @@ class Chat extends JFrame implements ActionListener {
                 try {
                     s.close();
                 } catch (IOException ioException) {
-                    Logger.writeErrorToLog("Unable to close receive socket for chat");
+                    Logger.writeErrorToLog("Failed to close socket TCP connection");
                 }
                 synchronized (Chat.chatWait) {
                     chatWait.notify();
                 }
+
+                Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                        "Leaving chatroom \"%s\" at chatroom server \"%s:%d\"",
+                        Chat.chatroomName,
+                        Chat.hostname,
+                        Chat.rmiPort
+                ));
                 super.windowClosing(e);
             }
         });
@@ -173,19 +223,38 @@ class Chat extends JFrame implements ActionListener {
         String s = e.getActionCommand();
         if (s.equals("submit")) {
 
+            String message = textEntry.getText();
+
+            Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                    "Attempting to send message \"%s\" to chat server at \"%s:%d\"",
+                    message,
+                    Chat.hostname,
+                    Chat.rmiPort
+            ));
+
             // send message to server via RMI accessor
             try {
                 synchronized (Chat.reestablishLock) {
-                    chatroomAccessor.getAccess().chat(chatroomName, username, textEntry.getText());
+                    chatroomAccessor.getAccess().chat(chatroomName, username, message);
                 }
                 // set the text of field to blank
                 textEntry.setText("");
             } catch (RemoteException | NotBoundException err) {
                 Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                        "There was an error contacting the chat server: \"%s\"",
+                        "There was an error sending message \"%s\" to chat server at \"%s:%d\": \"%s\"",
+                        message,
+                        Chat.hostname,
+                        Chat.rmiPort,
                         err.getMessage()
                 ));
             }
+
+            Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                    "Successfully sent message \"%s\" to chat server at \"%s:%d\"",
+                    message,
+                    Chat.hostname,
+                    Chat.rmiPort
+            ));
         }
     }
 
@@ -209,9 +278,14 @@ class Chat extends JFrame implements ActionListener {
             while(true) {
                 String message;
                 try {
-                    Logger.writeMessageToLog("startin");
                     while ((message = socketReader.readLine()) != null) {
-                        Logger.writeMessageToLog("firing");
+
+                        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                                "Received message \"%s\" from chat server at \"%s:%d\"",
+                                message,
+                                Chat.hostname,
+                                Chat.tcpPort
+                        ));
 
                         // write display to the main part of the window
                         textDisplay.setText(textDisplay.getText() + "\n" + message);
@@ -219,8 +293,9 @@ class Chat extends JFrame implements ActionListener {
                 } catch (IOException e) {
                     synchronized (Chat.reestablishLock) {
                         Logger.writeErrorToLog("Lost connection with chatroom server; reestablishing connection...");
+                        ChatroomResponse r = null;
                         try {
-                            ChatroomResponse r = centralServer.getAccess().reestablishChatroom(Chat.chatroomName, Chat.username);
+                            r = centralServer.getAccess().reestablishChatroom(Chat.chatroomName, Chat.username);
                             if (r.getStatus() == ResponseStatus.FAIL) {
                                 Logger.writeErrorToLog("Failed to reestablish connection with chatroom");
                                 // exit out of this class
@@ -235,7 +310,10 @@ class Chat extends JFrame implements ActionListener {
                             Chat.chatroomAccessor = new RMIAccess<>(Chat.hostname, Chat.rmiPort, "IChatroomUserOperations");
                             this.receiveSocket = Chat.establishSocket();
                             if (this.receiveSocket == null) {
-                                throw new IOException("Unable to establish new receive socket");
+                                Logger.writeErrorToLog("Failed to reestablish TCP connection with chatroom");
+                                // exit out of this class
+                                frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
+                                return;
                             }
 
                             this.socketReader = new BufferedReader(new InputStreamReader(this.receiveSocket.getInputStream()));
@@ -245,7 +323,11 @@ class Chat extends JFrame implements ActionListener {
                             frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
                             return;
                         }
-                        Logger.writeMessageToLog("Reestablished connection to chatroom server");
+                        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                                "Reestablished connection to chatroom server at \"%s:%d\"",
+                                r.getAddress(),
+                                r.getRegistryPort()
+                        ));
                     }
                 }
             }
@@ -259,20 +341,22 @@ class Chat extends JFrame implements ActionListener {
             PrintWriter out = new PrintWriter(new OutputStreamWriter(s.getOutputStream()), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
 
-            Logger.writeMessageToLog("about to send");
+            Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                    "Sending initial message \"%s:%s\" to chat server at \"%s:%d\"",
+                    Chat.chatroomName,
+                    Chat.username,
+                    Chat.hostname,
+                    Chat.tcpPort
+            ));
+
             out.println(Chat.chatroomName + ":" + Chat.username);
-            Logger.writeMessageToLog("sent");
             String response = in.readLine();
 
-            Logger.writeMessageToLog(response);
-
             if (response.compareTo("success") != 0) {
-                Logger.writeErrorToLog("Failed to establish connection with Chatroom server");
                 return null;
             }
 
         } catch (IOException e) {
-            Logger.writeErrorToLog("Unable to establish connection with Chatroom server");
             return null;
         }
         return s;

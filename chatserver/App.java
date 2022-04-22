@@ -33,29 +33,35 @@ public class App {
         RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(),
                 serverInfo.getCentralServerPort(), "ICentralOperations");
 
+        CristiansLogger.writeMessageToLog("Initiating Cristian's algorithm...");
         // initiate Cristians algorithm thread
         CristiansLogger.setCentralAccessor(centralServer);
         Thread t = new Thread(new CristiansLogger());
         t.start();
 
+        CristiansLogger.writeMessageToLog("Registering with central server...");
         // register response contains the Operations port for the Central Server
         RegisterResponse registerResponse = centralServer.getAccess().registerChatNode(serverInfo.getHostname(),
                 serverInfo.getOperationsPort());
 
+        CristiansLogger.writeMessageToLog("Setting up chat server operations...");
         // start operations registry
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());
         IChatroomOperations operationsEngine = new ChatroomOperations(roomMap, roomMapLock, serverInfo);
         operationsRegistry.rebind("IChatroomOperations", operationsEngine);
 
+        CristiansLogger.writeMessageToLog("Staring TCP socket connection thread...");
         // start receive thread for socket connections
         ConnectChatroom thread = new ConnectChatroom(serverInfo.getTcpPort(), this.roomMap, this.roomMapLock);
         thread.start();
 
+        CristiansLogger.writeMessageToLog("Setting up chatroom user operations...");
         // start RMI chat registry
         Registry userRegistry = LocateRegistry.createRegistry(serverInfo.getRmiPort());
         IChatroomUserOperations userOperationsEngine = new ChatroomUserOperations(this.roomMap, this.roomMapLock, serverInfo, registerResponse.getPort());
         userRegistry.rebind("IChatroomUserOperations", userOperationsEngine);
 
+        // indicate the server is ready
         System.out.println(ThreadSafeStringFormatter.format(
                 "Chat Server %s is ready",
                 serverInfo.getId()
@@ -68,6 +74,7 @@ public class App {
         try {
             serverInfo = App.parseCommandLineArgs(args);
         } catch (IllegalArgumentException e) {
+            // print to command line since logger has not been initialized
             System.out.println(e.getMessage());
             return;
         }

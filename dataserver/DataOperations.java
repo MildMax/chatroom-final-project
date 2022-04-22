@@ -125,6 +125,12 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 	}
 
 	public void deleteChatroom(String chatroomName) {
+
+    	CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+    			"Attempting to delete chatroom \"%s\"",
+				chatroomName
+		));
+
 		synchronized (chatroomMapLock) {
 			chatroomMap.remove(chatroomName);
 
@@ -148,11 +154,23 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 						"Something went very wrong writing to file %s",
 						filename
 				));
+				return;
 			}
 		}
+
+		CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+				"Successfully deleted chatroom \"%s\"",
+				chatroomName
+		));
 	}
 
 	public void createUser(String username, String password) {
+
+    	CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+    			"Creating user \"%s\"",
+				username
+		));
+
 		synchronized (userMapLock) {
 			if (!userMap.containsKey(username)) {
 				userMap.put(username, password);
@@ -162,6 +180,13 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 	}
 
 	public void createChatroom(String chatroomName, String username) {
+
+    	CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+    			"Attempting to create chatroom \"%s\" with owner \"%s\"",
+				chatroomName,
+				username
+		));
+
 		synchronized(chatroomMapLock) {
 			if (!chatroomMap.containsKey(chatroomName)) {
 				chatroomMap.put(chatroomName, username);
@@ -183,8 +208,15 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 							"There was an error when creating chat log file for chatroom \"%s\"",
 							chatroomName
 					));
+					return;
 				}
 			}
 		}
+
+		CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+				"Successfully created chatroom \"%s\" with owner \"%s\"",
+				chatroomName,
+				username
+		));
 	}
 }

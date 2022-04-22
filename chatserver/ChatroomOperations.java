@@ -44,14 +44,14 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
             }
 
             roomList.put(name, new Chatroom(name));
-
-            CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                    "Successfully created chatroom \"%s\"",
-                    name
-            ));
-
-            return new Response(ResponseStatus.OK, "success");
         }
+
+        CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Successfully created chatroom \"%s\"",
+                name
+        ));
+
+        return new Response(ResponseStatus.OK, "success");
     }
 
     @Override
@@ -65,8 +65,8 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
 
         synchronized (roomListLock) {
             roomList.remove(name);
-            return new Response(ResponseStatus.OK, "success");
         }
+        return new Response(ResponseStatus.OK, "success");
     }
 
     @Override
@@ -76,15 +76,16 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
                 "Received getChatroomData request from node at \"%s\"",
                 ClientIPUtil.getClientIP()
         ));
+        int chatrooms = roomList.size();
+        int users = 0;
 
         synchronized (roomListLock) {
-            int chatrooms = roomList.size();
-            int users = 0;
             for (String roomName : roomList.keySet()) {
                 users = users + roomList.get(roomName).getUserCount();
             }
-            return new ChatroomDataResponse(chatrooms, users, serverInfo.getHostname(), serverInfo.getRmiPort(), serverInfo.getTcpPort());
         }
+
+        return new ChatroomDataResponse(chatrooms, users, serverInfo.getHostname(), serverInfo.getRmiPort(), serverInfo.getTcpPort());
     }
 
     @Override
@@ -95,13 +96,11 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
                 ClientIPUtil.getClientIP()
         ));
 
+        List<String> chatroomNames = new LinkedList<>();
         synchronized (roomListLock) {
-            List<String> chatroomNames = new LinkedList<>();
-            for (String roomName : roomList.keySet()) {
-                chatroomNames.add(roomName);
-            }
-            return new ChatroomListResponse(chatroomNames);
+            chatroomNames.addAll(roomList.keySet());
         }
+        return new ChatroomListResponse(chatroomNames);
     }
 
 }

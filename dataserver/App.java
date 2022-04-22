@@ -5,6 +5,7 @@ import data.IDataOperations;
 import data.IDataParticipant;
 import data.RegisterResponse;
 import util.CristiansLogger;
+import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
@@ -38,11 +39,14 @@ public class App {
         // register Data node with the central server
         RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(), serverInfo.getCentralServerPort(), "ICentralOperations");
 
+        CristiansLogger.writeMessageToLog("Initiating Cristian's algorithm...");
         // initiate Cristians algorithm thread
         CristiansLogger.setCentralAccessor(centralServer);
         Thread t = new Thread(new CristiansLogger());
         t.start();
 
+
+        CristiansLogger.writeMessageToLog("Creating users.txt file if none exists");
         synchronized(userMapLock) {
             File users = new File("files_" + serverInfo.getId() + "/users.txt");
             // Read from users file
@@ -51,6 +55,7 @@ public class App {
                 users.createNewFile();
                 BufferedReader br = new BufferedReader(new FileReader(users));
                 String user;
+                CristiansLogger.writeMessageToLog("Reading existing users into memory...");
                 while ((user = br.readLine()) != null) {
                     String[] userpass = user.split(":");
                     userMap.put(userpass[0], userpass[1]);
@@ -62,6 +67,7 @@ public class App {
             }
         }
 
+        CristiansLogger.writeMessageToLog("Creating chatrooms.txt file if none exists");
         List<String> roomNames = new LinkedList<>();
         synchronized(channelMapLock) {
     		File chatrooms = new File("files_" + serverInfo.getId() + "/chatrooms.txt");
@@ -71,6 +77,7 @@ public class App {
     			chatrooms.createNewFile();
 				BufferedReader br = new BufferedReader(new FileReader(chatrooms));
 				String channel;
+                CristiansLogger.writeMessageToLog("Reading existing chatrooms into memory...");
 				while ((channel = br.readLine()) != null) {
 					String[] channeluser = channel.split(":");
 					channelMap.put(channeluser[0], channeluser[1]);
@@ -83,6 +90,7 @@ public class App {
             roomNames.addAll(channelMap.keySet());
         }
 
+        CristiansLogger.writeMessageToLog("Registering data node with central server...");
         // register response contains the Coordinator port for the Central Server
         RegisterResponse registerResponse = centralServer.getAccess().registerDataNode(serverInfo.getHostname(),
                 serverInfo.getOperationsPort(),
@@ -90,20 +98,24 @@ public class App {
                 roomNames
         );
 
+
         // create directory for chatroom logs
         File chatLogdir = new File("files_" + serverInfo.getId() + "/chatlogs");
         if (!chatLogdir.exists()) {
+            CristiansLogger.writeMessageToLog("Creating chatlogs directory");
             if (!chatLogdir.mkdir()) {
                 CristiansLogger.writeErrorToLog("Unable to create chatLogs subdirectory");
                 return;
             }
         }
-        
+
+        CristiansLogger.writeMessageToLog("Setting up data operations...");
         // start the Data Operations registry
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());
         IDataOperations operationsEngine = new DataOperations(this.userMap, this.userMapLock, this.channelMap, this.channelMapLock, serverInfo);
         operationsRegistry.rebind("IDataOperations", operationsEngine);
 
+        CristiansLogger.writeMessageToLog("Setting up participant operations...");
         // start the Data Participant registry
         Registry participantRegistry = LocateRegistry.createRegistry(serverInfo.getParticipantPort());
         IDataParticipant participantEngine = new ParticipantOperations(serverInfo.getCentralServerHostname(), registerResponse.getPort(), serverInfo.getId(), (DataOperations) operationsEngine);
@@ -121,10 +133,12 @@ public class App {
         try {
             serverInfo = App.parseCommandLineArguments(args);
         } catch (IllegalArgumentException e) {
+            // print to command line since logger has not yet been set up
             System.out.println(e.getMessage());
             return;
         }
 
+        // set up unique log for this data node based on provided id
         CristiansLogger.loggerSetup(ThreadSafeStringFormatter.format("DataNode%s", serverInfo.getId()));
         
         // Create a directory for each server based on it's name 

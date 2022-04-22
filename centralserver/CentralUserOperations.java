@@ -76,7 +76,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         if (username.contains(":") || password.contains(":")) {
     		errorMessage = "You cannot have a username or password that contains \":\"";
     		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                    "Tried to create a username or password with \":\" %s, %s ",
+                    "User ried to create a username or password with \":\" %s, %s ",
                     username, password
             ));
     		return new Response(ResponseStatus.FAIL, errorMessage);
@@ -155,7 +155,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                 return new Response(ResponseStatus.OK, "success");
             } else {
                 Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                        "Unable to log in user \"%s\" with message: \"%s\"",
+                        "Unable to log in user \"%s\": \"%s\"",
                         username,
                         response.getMessage()
                 ));
@@ -186,9 +186,10 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                     ));
                     continue;
                 }
-                for (String name : chatroomListResponse.getChatroomNames()) {
-                    chatroomList.add(name);
-                }
+
+                if (chatroomListResponse != null) {
+					chatroomList.addAll(chatroomListResponse.getChatroomNames());
+				}
             }
         }
         return new ChatroomListResponse(chatroomList);
@@ -219,16 +220,18 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         if (chatroomName.contains(":")) {
     		errorMessage = "You cannot have a chatroom name that contains \":\"";
     		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                    "Tried to create a chatroom with \":\" %s ",
+                    "Tried to create a chatroom with \":\": %s",
                     chatroomName
             ));
     		return new ChatroomResponse(ResponseStatus.FAIL, errorMessage);
     	} else if (chatroomExists) {
-    		errorMessage = "Chatroom already exists";
-    		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                    errorMessage,
-                    chatroomName
-            ));
+    		errorMessage = ThreadSafeStringFormatter.format(
+    				"Chatroom \"%s already exists",
+					chatroomName
+			);
+    		Logger.writeErrorToLog(
+                    errorMessage
+            );
     		return new ChatroomResponse(ResponseStatus.FAIL, errorMessage);
     	} else {
 
@@ -382,7 +385,11 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 			userOwns = isUserOwner(chatroomName, username);
 
 			if (!userOwns) {
-				errorMessage = "User does not own this chatroom";
+				errorMessage = ThreadSafeStringFormatter.format(
+						"User \"%s\" is unauthorized to delete chatroom \"%s\"",
+						username,
+						chatroomName
+				);
 				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
 						"User \"%s\" attempted to delete chatroom \"%s\" that they do not own",
 						username,
@@ -473,7 +480,9 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         ChatroomResponse response = CentralUserOperations.innerCreateChatroom(chatroomName, this.chatroomNodeLock, this.chatroomNodes);
         if (response.getStatus() == ResponseStatus.FAIL && response.getMessage().compareTo(CentralUserOperations.EXISTING_CHATROOM_MESSAGE) == 0) {
         	Logger.writeMessageToLog("Chatroom has already been reestablished; getting chatroom data...");
-            return CentralUserOperations.getChatroomResponse(chatroomName, chatroomNodes);
+        	synchronized (chatroomNodeLock) {
+				return CentralUserOperations.getChatroomResponse(chatroomName, chatroomNodes);
+			}
         } else {
             return response;
         }

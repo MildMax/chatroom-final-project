@@ -5,6 +5,7 @@ import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
+import javax.swing.plaf.TableHeaderUI;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.util.Scanner;
@@ -22,7 +23,8 @@ public class App {
             return;
         }
 
-        RMIAccess<ICentralUserOperations> centralServerAccessor = new RMIAccess<>(serverInfo.getCentralHost(),
+        RMIAccess<ICentralUserOperations> centralServerAccessor = new RMIAccess<>(
+                serverInfo.getCentralHost(),
                 serverInfo.getCentralPort(),
                 "ICentralUserOperations");
 
@@ -53,14 +55,27 @@ public class App {
                     String loginPassword = input.nextLine();
                     System.out.println();
 
+                    Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                            "Attempting to log into application with username \"%s\"",
+                            loginUsername
+                    ));
+
                     Response r = centralServerAccessor.getAccess().login(loginUsername, loginPassword);
 
                     if (r.getStatus() == ResponseStatus.FAIL) {
+                        Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                "Login attempt for username \"%s\" failed",
+                                loginUsername
+                        ));
                         System.out.println(String.format(
                                 "Login failed: %s",
                                 r.getMessage()
                         ));
                     } else {
+                        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                                "Successfully logged in with username \"%s\"",
+                                loginUsername
+                        ));
                         System.out.println("Success!");
                         username = loginUsername;
                         password = loginPassword;
@@ -75,15 +90,31 @@ public class App {
                     String createPassword = input.nextLine();
                     System.out.println();
 
+                    Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                            "Attempting to register user \"%s\"",
+                            createUsername
+                    ));
+
                     Response r = centralServerAccessor.getAccess().registerUser(createUsername, createPassword);
 
                     if (r.getStatus() == ResponseStatus.FAIL) {
+                        Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                "Failed to register user \"%s\": \"%s\"",
+                                createUsername,
+                                r.getMessage()
+                        ));
                         System.out.println(String.format(
                                 "Create user failed: %s",
                                 r.getMessage()
                         ));
                     } else {
                         System.out.println("Success!");
+
+                        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                                "Successfully registered user \"%s\"",
+                                createUsername
+                        ));
+
                         username = createUsername;
                         password = createPassword;
                         isLoggedIn = true;
@@ -116,14 +147,32 @@ public class App {
                     String chatroomName = input.nextLine();
                     System.out.println();
 
+                    Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                            "Attempting to join chatroom \"%s\"",
+                            chatroomName
+                    ));
+
                     ChatroomResponse r = centralServerAccessor.getAccess().getChatroom(chatroomName);
 
                     if (r.getStatus() == ResponseStatus.FAIL) {
+
+                        Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                "User was unable to join chatroom \"%s\": \"%s\"",
+                                chatroomName,
+                                r.getMessage()
+                        ));
+
                         System.out.println(String.format(
                                 "Join chatroom failed: \"%s\"",
                                 r.getMessage()
                         ));
                     } else {
+
+                        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                                "Successfully found chatroom \"%s\"",
+                                chatroomName
+                        ));
+
                         System.out.println("Joining chatroom...");
                         Object chatWait = new Object();
                         Chat chat = new Chat(username, chatroomName, r.getAddress(), r.getTcpPort(), r.getRegistryPort(), centralServerAccessor, chatWait);
@@ -139,7 +188,11 @@ public class App {
                 }
                 else if (in.compareTo("2") == 0) {
 
+                    Logger.writeMessageToLog("Attempting to gather list of available chatrooms...");
+
                     ChatroomListResponse r = centralServerAccessor.getAccess().listChatrooms();
+
+                    Logger.writeMessageToLog("Successfully gathered list of available chatrooms");
 
                     System.out.println("Available chatrooms:");
 
@@ -154,14 +207,32 @@ public class App {
                     String chatroomName = input.nextLine();
                     System.out.println();
 
+                    Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                            "Attempting to create new chatroom \"%s\"",
+                            chatroomName
+                    ));
+
                     ChatroomResponse r = centralServerAccessor.getAccess().createChatroom(chatroomName, username);
 
                     if (r.getStatus() == ResponseStatus.FAIL) {
+
+                        Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                "Creation of chatroom \"%s\" failed: \"%s\"",
+                                chatroomName,
+                                r.getMessage()
+                        ));
+
                         System.out.println(String.format(
                                 "Create chatroom failed: %s",
                                 r.getMessage()
                         ));
                     } else {
+
+                        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                                "Successfully created new chatroom \"%s\"",
+                                chatroomName
+                        ));
+
                         System.out.println("Joining new chatroom...");
                         Object chatWait = new Object();
                         Chat chat = new Chat(username, chatroomName, r.getAddress(), r.getTcpPort(), r.getRegistryPort(), centralServerAccessor, chatWait);
@@ -182,19 +253,43 @@ public class App {
                     String chatroomName = input.nextLine();
                     System.out.println();
 
+                    Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                            "Attempting to delete chatroom \"%s\"",
+                            chatroomName
+                    ));
+
                     Response r = centralServerAccessor.getAccess().deleteChatroom(chatroomName, username, password);
 
                     if (r.getStatus() == ResponseStatus.FAIL) {
+
+                        Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                "Failed to delete chatroom \"%s\": \"%s\"",
+                                chatroomName,
+                                r.getMessage()
+                        ));
+
                         System.out.println(String.format(
                                 "Delete chatroom failed: %s",
                                 r.getMessage()
                         ));
                     } else {
+
+                        Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                                "Successfully deleted chatroom \"%s\"",
+                                chatroomName
+                        ));
+
                         System.out.println("Chatroom successfully deleted!");
                     }
 
                 }
                 else if (in.compareTo("5") == 0) {
+
+                    Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                            "Logging out user \"%s\"",
+                            username
+                    ));
+
                     isLoggedIn = false;
                     username = "";
                     password = "";
