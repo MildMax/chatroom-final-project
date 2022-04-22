@@ -54,16 +54,19 @@ public class App {
         Thread cleanerThread = new Thread(cleaner);
         cleanerThread.start();
 
+        Logger.writeMessageToLog("Setting up central coordinator interface...");
         // start registry for Data -> Central Coordinator operations
         Registry centralCoordinatorRegistry = LocateRegistry.createRegistry(serverInfo.getCoordinatorPort());
         CentralCoordinator coordinatorEngine = new CentralCoordinator();
         centralCoordinatorRegistry.rebind("ICentralCoordinator", coordinatorEngine);
 
+        Logger.writeMessageToLog("Setting up chatroom operations interface...");
         // start registry for Chatroom -> Central Server communication
         Registry centralChatroomOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getChatroomPort());
         ICentralChatroomOperations centralChatroomOperationsEngine = new CentralChatroomOperations(this.dataNodesParticipants, this.dataNodeParticipantsLock, coordinatorEngine);
         centralChatroomOperationsRegistry.rebind("ICentralChatroomOperations", centralChatroomOperationsEngine);
-        
+
+        Logger.writeMessageToLog("Setting up user operations interface...");
         // start registry for Client -> Central Server communication
         Registry centralUserOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getUserPort());
         ICentralUserOperations centralUserOperationsEngine = new CentralUserOperations(

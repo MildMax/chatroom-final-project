@@ -36,22 +36,6 @@ public class Transaction implements Serializable {
     }
 
     /**
-     * Creates an instance of a transaction when the transaction requires only a key
-     *
-     * @param op type of operation to perform on the KeyValue store
-     * @param key describes an entry in the KeyValue store
-     */
-    public Transaction(Operations op, String key) {
-        this.op = op;
-        this.key = key;
-        // ensure index assignment and manipulation is atomic
-        synchronized (messageIndexLock) {
-            this.index = Transaction.messageIndex;
-            Transaction.messageIndex += 1;
-        }
-    }
-
-    /**
      * Get the operation associated with this Transaction
      *
      * @return the operation associated with this Transaction
@@ -82,9 +66,10 @@ public class Transaction implements Serializable {
     @Override
     public String toString() {
         return ThreadSafeStringFormatter.format(
-                "%s %s",
+                "%s %s %d",
                 this.op.toString(),
-                this.key
+                this.key,
+                this.index
         );
     }
 }

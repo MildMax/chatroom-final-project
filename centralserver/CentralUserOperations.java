@@ -530,107 +530,111 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         return accessor;
     }
 
-    public synchronized static ChatroomResponse innerCreateChatroom(String chatroomName,
+    public static ChatroomResponse innerCreateChatroom(String chatroomName,
                                                         Object chatroomNodeLock,
                                                         List<RMIAccess<IChatroomOperations>> chatroomNodes) throws RemoteException {
         boolean chatroomExists = false;
         synchronized (chatroomNodeLock) {
-            for (RMIAccess<IChatroomOperations> chatroomAccess : chatroomNodes) {
-                ChatroomListResponse chatroomListResponse = null;
-                try {
-                    chatroomListResponse = chatroomAccess.getAccess().getChatrooms();
-                } catch (NotBoundException e) {
-                    Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                            "Unable to contact Chat server at \"%s:%d\"; skipping",
-                            chatroomAccess.getHostname(),
-                            chatroomAccess.getPort()
-                    ));
-                    continue;
-                }
+			for (RMIAccess<IChatroomOperations> chatroomAccess : chatroomNodes) {
+				ChatroomListResponse chatroomListResponse = null;
+				try {
+					chatroomListResponse = chatroomAccess.getAccess().getChatrooms();
+				} catch (NotBoundException e) {
+					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+							"Unable to contact Chat server at \"%s:%d\"; skipping",
+							chatroomAccess.getHostname(),
+							chatroomAccess.getPort()
+					));
+					continue;
+				}
 
-                for (String name : chatroomListResponse.getChatroomNames()) {
-                    if (name.compareTo(chatroomName) == 0) {
-                        chatroomExists = true;
-                        break;
-                    }
-                }
-                if (chatroomExists) {
-                    break;
-                }
-            }
+				for (String name : chatroomListResponse.getChatroomNames()) {
+					if (name.compareTo(chatroomName) == 0) {
+						chatroomExists = true;
+						break;
+					}
+				}
+				if (chatroomExists) {
+					break;
+				}
+			}
+		}
 
 
-            if (chatroomExists) {
-                return new ChatroomResponse(ResponseStatus.FAIL, CentralUserOperations.EXISTING_CHATROOM_MESSAGE);
-            }
+		if (chatroomExists) {
+			return new ChatroomResponse(ResponseStatus.FAIL, CentralUserOperations.EXISTING_CHATROOM_MESSAGE);
+		}
 
-            ChatroomDataResponse min = null;
-            RMIAccess<IChatroomOperations> minAccess = null;
-            for (RMIAccess<IChatroomOperations> chatroomAccess : chatroomNodes) {
-                ChatroomDataResponse chatroomDataResponse = null;
-                try {
-                    chatroomDataResponse = chatroomAccess.getAccess().getChatroomData();
-                } catch (NotBoundException e) {
-                    Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                            "Unable to contact Chat server at \"%s:%d\"; skipping",
-                            chatroomAccess.getHostname(),
-                            chatroomAccess.getPort()
-                    ));
-                    continue;
-                }
+		ChatroomDataResponse min = null;
+		RMIAccess<IChatroomOperations> minAccess = null;
 
-                if (min == null) {
-                    min = chatroomDataResponse;
-                    minAccess = chatroomAccess;
-                } else {
-                    // if the current min has more users than the new chatroom node, set min to the new chatroom node
-                    if (min.getUsers() > chatroomDataResponse.getUsers()) {
-                        min = chatroomDataResponse;
-                        minAccess = chatroomAccess;
-                    }
-                    // if the current min has the same number of users than the new chatroom node,
-                    // and the current min has more chatrooms than the new chatroom node,
-                    // set the new chatroom node to be the min
-                    else if (min.getUsers() == chatroomDataResponse.getUsers() && min.getChatrooms() > chatroomDataResponse.getChatrooms()) {
-                        min = chatroomDataResponse;
-                        minAccess = chatroomAccess;
-                    }
-                }
-            }
+		synchronized (chatroomNodeLock) {
+			for (RMIAccess<IChatroomOperations> chatroomAccess : chatroomNodes) {
+				ChatroomDataResponse chatroomDataResponse = null;
+				try {
+					chatroomDataResponse = chatroomAccess.getAccess().getChatroomData();
+				} catch (NotBoundException e) {
+					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+							"Unable to contact Chat server at \"%s:%d\"; skipping",
+							chatroomAccess.getHostname(),
+							chatroomAccess.getPort()
+					));
+					continue;
+				}
 
-            if (min == null || minAccess == null) {
-                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                        "Unable to determine Chat server with the least load; unable to create chatroom \"%s\"",
-                        chatroomName
-                ));
-                return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
-            }
+				if (min == null) {
+					min = chatroomDataResponse;
+					minAccess = chatroomAccess;
+				} else {
+					// if the current min has more users than the new chatroom node, set min to the new chatroom node
+					if (min.getUsers() > chatroomDataResponse.getUsers()) {
+						min = chatroomDataResponse;
+						minAccess = chatroomAccess;
+					}
+					// if the current min has the same number of users than the new chatroom node,
+					// and the current min has more chatrooms than the new chatroom node,
+					// set the new chatroom node to be the min
+					else if (min.getUsers() == chatroomDataResponse.getUsers() && min.getChatrooms() > chatroomDataResponse.getChatrooms()) {
+						min = chatroomDataResponse;
+						minAccess = chatroomAccess;
+					}
+				}
+			}
+		}
 
-            Response response = null;
-            try {
-                response = minAccess.getAccess().createChatroom(chatroomName);
-            } catch (NotBoundException e) {
-                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                        "Unable to contact Chat server at \"%s:%d\"; cannot create chatroom \"%s\"",
-                        minAccess.getHostname(),
-                        minAccess.getPort(),
-                        chatroomName
-                ));
-                return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
-            }
+		if (min == null || minAccess == null) {
+			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					"Unable to determine Chat server with the least load; unable to create chatroom \"%s\"",
+					chatroomName
+			));
+			return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
+		}
 
-            if (response.getStatus() == ResponseStatus.FAIL) {
-                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                        "Unable to create chatroom \"%s\" at Chat server at \"%s:%d\"",
-                        chatroomName,
-                        minAccess.getHostname(),
-                        minAccess.getPort()
-                ));
-                return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
-            }
+		Response response = null;
+		try {
+			response = minAccess.getAccess().createChatroom(chatroomName);
+		} catch (NotBoundException e) {
+			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					"Unable to contact Chat server at \"%s:%d\"; cannot create chatroom \"%s\"",
+					minAccess.getHostname(),
+					minAccess.getPort(),
+					chatroomName
+			));
+			return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
+		}
 
-            return new ChatroomResponse(ResponseStatus.OK, "success", chatroomName, min.getHostname(), min.getTcpPort(), min.getRmiPort());
-        }
+		if (response.getStatus() == ResponseStatus.FAIL) {
+			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					"Unable to create chatroom \"%s\" at Chat server at \"%s:%d\"",
+					chatroomName,
+					minAccess.getHostname(),
+					minAccess.getPort()
+			));
+			return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
+		}
+
+		return new ChatroomResponse(ResponseStatus.OK, "success", chatroomName, min.getHostname(), min.getTcpPort(), min.getRmiPort());
+
     }
 
     public Response innerDeleteChatroom(String chatroomName) throws RemoteException {

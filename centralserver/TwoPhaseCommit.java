@@ -49,9 +49,12 @@ public class TwoPhaseCommit {
         synchronized (dataNodeParticipantsLock) {
             for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
                 CanCommitThread thread = new CanCommitThread(participant, t);
-                thread.start();
                 commitThreads.add(thread);
             }
+        }
+
+        for (CanCommitThread commitThread : commitThreads) {
+            commitThread.start();
         }
 
         boolean success = true;
@@ -69,7 +72,7 @@ public class TwoPhaseCommit {
                 continue;
             }
 
-            if (thread.getResult() != Ack.YES) {
+            if (thread.getResult() == Ack.NO) {
                 success = false;
             }
             Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
@@ -115,7 +118,6 @@ public class TwoPhaseCommit {
 
                 commitThread.start();
                 coordinator.addWaitCommit(t, waitObject);
-
             }
         }
         synchronized (waitObject) {
