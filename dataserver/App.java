@@ -3,10 +3,8 @@ package dataserver;
 import data.ICentralOperations;
 import data.IDataOperations;
 import data.IDataParticipant;
-import data.Operations;
 import data.RegisterResponse;
-import data.Transaction;
-import util.Logger;
+import util.CristiansLogger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
@@ -42,26 +40,31 @@ public class App {
         // register Data node with the central server
         RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(), serverInfo.getCentralServerPort(), "ICentralOperations");
 
+        // initiate Cristians algorithm thread
+        CristiansLogger.setCentralAccessor(centralServer);
+        Thread t = new Thread(new CristiansLogger());
+        t.start();
+
         // register response contains the Coordinator port for the Central Server
         RegisterResponse registerResponse = centralServer.getAccess().registerDataNode(serverInfo.getHostname(), serverInfo.getOperationsPort(), serverInfo.getParticipantPort());
 
         synchronized(userMapLock) {
-        		File users = new File("files_" + serverInfo.getId() + "/users.txt");
-        		// Read from users file
-        		try {
-        			// Create file if it doesn't exist yet.
-        			users.createNewFile();
-					BufferedReader br = new BufferedReader(new FileReader(users));
-					String user;
-					while ((user = br.readLine()) != null) {
-						String[] userpass = user.split(":");
-						userMap.put(userpass[0], userpass[1]);
-					}
-					br.close();
-				} catch (IOException e) {
-					Logger.writeErrorToLog("Unable to find or create users.txt for server; shutting down server");
-					return;
-				}
+            File users = new File("files_" + serverInfo.getId() + "/users.txt");
+            // Read from users file
+            try {
+                // Create file if it doesn't exist yet.
+                users.createNewFile();
+                BufferedReader br = new BufferedReader(new FileReader(users));
+                String user;
+                while ((user = br.readLine()) != null) {
+                    String[] userpass = user.split(":");
+                    userMap.put(userpass[0], userpass[1]);
+                }
+                br.close();
+            } catch (IOException e) {
+                CristiansLogger.writeErrorToLog("Unable to find or create users.txt for server; shutting down server");
+                return;
+            }
         }
 
         synchronized(channelMapLock) {
@@ -78,7 +81,7 @@ public class App {
 				}
 				br.close();
 			} catch (IOException e) {
-                Logger.writeErrorToLog("Unable to find or create chatrooms.txt for server; shutting down server");
+                CristiansLogger.writeErrorToLog("Unable to find or create chatrooms.txt for server; shutting down server");
                 return;
 			}
         }
@@ -87,7 +90,7 @@ public class App {
         File chatLogdir = new File("files_" + serverInfo.getId() + "/chatlogs");
         if (!chatLogdir.exists()) {
             if (!chatLogdir.mkdir()) {
-                Logger.writeErrorToLog("Unable to create chatLogs subdirectory");
+                CristiansLogger.writeErrorToLog("Unable to create chatLogs subdirectory");
                 return;
             }
         }
@@ -118,7 +121,7 @@ public class App {
             return;
         }
 
-        Logger.serverLoggerSetup(ThreadSafeStringFormatter.format("DataNode%s", serverInfo.getId()));
+        CristiansLogger.loggerSetup(ThreadSafeStringFormatter.format("DataNode%s", serverInfo.getId()));
         
         // Create a directory for each server based on it's name 
         String fileDir = "files_" + serverInfo.getId() + "/";
@@ -128,7 +131,7 @@ public class App {
         try {
             app.go(serverInfo);
         } catch (RemoteException | NotBoundException e) {
-            Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+            CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
                     "Data node failed on startup with message: \"%s\"",
                     e.getMessage()
             ));

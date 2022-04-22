@@ -1,63 +1,71 @@
 package chatserver;
 
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import util.CristiansLogger;
+import util.ThreadSafeStringFormatter;
+
+import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Chatroom {
 
-    private final List<Socket> subscriberList;
-    private final Object subscriberListLock;
+    private final Map<String, Socket> socketMap;
+    private final Object socketMapLock;
     private final String roomName;
 
     public Chatroom(String roomName) {
-        this.subscriberList = new LinkedList<>();
-        this.subscriberListLock = new Object();
+        this.socketMap = new HashMap<>();
+        this.socketMapLock = new Object();
         this.roomName = roomName;
     }
 
-    public void Subscribe(Socket s) {
-        synchronized (subscriberListLock) {
-            subscriberList.add(s);
+    public void subscribe(Socket s, String username) {
+        synchronized (socketMapLock) {
+            this.socketMap.put(username, s);
         }
     }
 
-    public void Publish(String message) {
-        synchronized (subscriberListLock) {
-            // Pattern: Publisher send via Input Channel/RMI Registry -> Message Broker(Chatroom Server) -> Message Broker sends messages via Ouput Channel to Subsribers
-
-            for (Socket client : subscriberList) {
-
-                try {
-                    OutputStreamWriter outputWriter = new OutputStreamWriter(client.getOutputStream());
-                    BufferedWriter bufferWriter = new BufferedWriter(outputWriter);
-                    bufferWriter.write(creatorUsername + ": " + message);
-
-                } catch(IOException e){
-                    e.printStackTrace();
-                }
+    public void unsubscribe(String username) {
+        synchronized (socketMapLock) {
+            Socket s = socketMap.get(username);
+            try {
+                s.close();
+            } catch (IOException e) {
+                CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                        "There was an error closing the socket for user \"%s\""
+                ));
             }
-
-
-            //Send Message to Input Channel (Socket)
-           
-
-            //Have Output Channel Send Out messages to various subscribers.
+            this.socketMap.remove(username);
         }
+    }
 
+    public void publish(String message) {
+        synchronized (socketMapLock) {
+            for (String user : socketMap.keySet()) {
+                CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                        "Publishing message to user \"%s\"",
+                        user
+                ));
+                PrintWriter out = null;
+                try {
+                    out = new PrintWriter(new OutputStreamWriter(socketMap.get(user).getOutputStream()), true);
+                    out.println(message);
+                } catch (IOException e) {
+                    CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                            ""
+                    ));
+                }
+
+            }
+        }
     }
 
     public int getUserCount() {
-        synchronized (subscriberListLock) {
-            return subscriberList.size();
+        synchronized (socketMapLock) {
+            return socketMap.size();
         }
-    }
-
-    public String getRoomName() {
-        return roomName;
     }
 }

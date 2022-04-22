@@ -3,10 +3,9 @@ package dataserver;
 import data.IDataOperations;
 import data.Response;
 import data.ResponseStatus;
-import util.Logger;
+import util.CristiansLogger;
 import util.ThreadSafeStringFormatter;
 
-import javax.swing.plaf.TableHeaderUI;
 import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -35,14 +34,14 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
     @Override
     public Response verifyUser(String username, String password) throws RemoteException {
 
-    	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+    	CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
     			"Verifying user \"%s\"...",
 				username
 		));
 
         synchronized (userMapLock) {
             if (!userMap.containsKey(username)) {
-            	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+            	CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
             			"Unable to verify user \"%s\"",
 						username
 				));
@@ -50,14 +49,14 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
             }
 
             if (userMap.get(username).compareTo(password) != 0) {
-				Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+				CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 						"Unable to verify user \"%s\"",
 						username
 				));
                 return new Response(ResponseStatus.FAIL, "User provided an invalid password");
             }
 
-            Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+            CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
             		"Verified user \"%s\"",
 					username
 			));
@@ -69,7 +68,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
     @Override
     public Response verifyOwnership(String chatroomName, String username) throws RemoteException {
 
-    	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+    	CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
     			"Verifying ownership of chatroom \"%s\" for user \"%s\"",
 				chatroomName,
 				username
@@ -77,7 +76,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 
     	synchronized (chatroomMapLock) {
     		if (!chatroomMap.containsKey(chatroomName)) {
-    			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+    			CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
     					"Unable to verify ownership of non-existent chatroom \"%s\" for user \"%s\"",
 						chatroomName,
 						username
@@ -85,7 +84,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
     			return new Response(ResponseStatus.FAIL, "Cannot verify ownership of non-existent chatroom");
 			}
             if (chatroomMap.get(chatroomName).compareTo(username) != 0) {
-            	Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+            	CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
             			"Unable to verify user \"%s\" owns chatroom \"%s\"",
 						username,
 						chatroomName
@@ -93,7 +92,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
                 return new Response(ResponseStatus.FAIL, "You are not the owner of this chatroom");
             }
 
-			Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+			CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 					"Successfully verified user \"%s\" owns chatroom \"%s\"",
 					username,
 					chatroomName
@@ -106,7 +105,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 	@Override
 	public boolean userExists(String username) throws RemoteException {
 
-    	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+    	CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
     			"Verifying that user \"%s\" exists...",
 				username
 		));
@@ -117,7 +116,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 	@Override
 	public boolean chatroomExists(String chatroom) throws RemoteException {
 
-		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+		CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 				"Verifying that chatroom \"%s\" exists...",
 				chatroom
 		));
@@ -145,7 +144,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 				}
 				writer.close();
 			} catch (IOException e) {
-				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+				CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
 						"Something went very wrong writing to file %s",
 						filename
 				));
@@ -169,18 +168,18 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 				File chatLog = new File(dir.toString() + "/chatlogs/" + chatroomName + ".txt");
 				try {
 					if (chatLog.createNewFile()) {
-						Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+						CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 								"Successfully created new chat log file for chatroom \"%s\"",
 								chatroomName
 						));
 					} else {
-						Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
 								"Unable to create new chat log file for chatroom \"%s\"",
 								chatroomName
 						));
 					}
 				} catch (IOException e) {
-					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
 							"There was an error when creating chat log file for chatroom \"%s\"",
 							chatroomName
 					));

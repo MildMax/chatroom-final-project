@@ -4,12 +4,10 @@ import data.Ack;
 import data.ICentralCoordinator;
 import data.IDataParticipant;
 import data.Transaction;
-import util.Logger;
+import util.CristiansLogger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 
@@ -76,7 +74,7 @@ public class CoordinatorDecisionThread extends Thread {
             coordinatorDecision = c.getAccess().getDecision(this.t);
         } catch (RemoteException | NotBoundException e) {
             // if error looking up decision, log error and terminate decision thread
-            Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+            CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
                     "Unable to retrieve decision on transaction \"%s\" from coordinator at \"%s:%d\"; terminating decision thread",
                     t.toString(),
                     this.coordinatorHostname,
@@ -87,7 +85,7 @@ public class CoordinatorDecisionThread extends Thread {
 
         // if decision from server is NO, run abort on transaction
         if (coordinatorDecision == Ack.NO) {
-            Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+            CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
                     "Received doAbort decision from \"%s:%d\" for %s",
                     this.coordinatorHostname,
                     this.coordinatorPort,
@@ -97,7 +95,7 @@ public class CoordinatorDecisionThread extends Thread {
             try {
                 this.participant.getAccess().doAbort(t);
             } catch (RemoteException | NotBoundException e) {
-                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
                         "Unable to abort on coordinator decision for transaction \"%s\"",
                         t.toString()
                 ));
@@ -105,7 +103,7 @@ public class CoordinatorDecisionThread extends Thread {
         }
         // if server is YES, run commit on transaction
         else if (coordinatorDecision == Ack.YES) {
-            Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+            CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
                     "Received doCommit decision from \"%s:%d\" for %s",
                     coordinatorHostname,
                     coordinatorPort,
@@ -115,7 +113,7 @@ public class CoordinatorDecisionThread extends Thread {
             try {
                 this.participant.getAccess().doCommit(t, this.participant);
             } catch (RemoteException | NotBoundException e) {
-                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
                         "Unable to commit on coordinator decision for transaction \"%s\"",
                         t.toString()
                 ));
@@ -126,7 +124,7 @@ public class CoordinatorDecisionThread extends Thread {
                 c.getAccess().haveCommitted(this.t, this.participant);
             } catch (RemoteException | NotBoundException e) {
                 // do not terminate on error, proceed to remove operation from local transaction log
-                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
                         "Unable to inform Coordinator at \"%s:%d\" of commit for transaction \"%s\"",
                         this.coordinatorHostname,
                         this.coordinatorPort,
@@ -136,7 +134,7 @@ public class CoordinatorDecisionThread extends Thread {
         }
         // otherwise, do nothing without decision from coordinator
         else {
-            Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+            CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
                     "Coordinator at \"%s:%d\" has not made a decision about transaction \"%s\"",
                     this.coordinatorHostname,
                     this.coordinatorPort,

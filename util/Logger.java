@@ -10,14 +10,14 @@ import java.util.Date;
 /**
  * Manages writing events to server logs
  */
-public class Logger {
+public abstract class Logger {
 
     private static BufferedWriter logWriter;
 
     /**
      * Initializes the ServerLogger
      */
-    public static void serverLoggerSetup(String id) {
+    public static void loggerSetup(String id) {
         File logFile = new File(String.format("./%sLog.txt", id));
         // check if the logfile already exists; if not, create one
         if (!logFile.exists()) {
@@ -70,7 +70,7 @@ public class Logger {
      *
      * @return current time with millisecond precision
      */
-    private static String getFormattedTimeInMilli() {
+    protected static String getFormattedTimeInMilli() {
         long milliTime = System.currentTimeMillis();
         Date date = new Date(milliTime);
         // create expression to define format of current time with millisecond precision
@@ -78,4 +78,5 @@ public class Logger {
         // format and return date
         return sdf.format(date);
     }
+
 }
