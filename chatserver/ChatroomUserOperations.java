@@ -61,7 +61,7 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
                 // retry log until it succeeds
                 while (!success) {
 
-                    Response r = centralServerAccessor.getAccess().logChatMessage(chatroomName, message);
+                    Response r = centralServerAccessor.getAccess().logChatMessage(chatroomName, username + " >> " + message);
                     if (r.getStatus() == ResponseStatus.OK) {
                         success = true;
                     } else {

@@ -479,11 +479,18 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         // create new chatroom using existing create chatroom functionality
         ChatroomResponse response = CentralUserOperations.innerCreateChatroom(chatroomName, this.chatroomNodeLock, this.chatroomNodes);
         if (response.getStatus() == ResponseStatus.FAIL && response.getMessage().compareTo(CentralUserOperations.EXISTING_CHATROOM_MESSAGE) == 0) {
-        	Logger.writeMessageToLog("Chatroom has already been reestablished; getting chatroom data...");
+        	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+        			"Chatroom \"%s\" has already been reestablished; getting chatroom data...",
+					chatroomName
+			));
         	synchronized (chatroomNodeLock) {
 				return CentralUserOperations.getChatroomResponse(chatroomName, chatroomNodes);
 			}
         } else {
+        	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+        			"Successfully reestablished chatroom \"%s\"",
+					chatroomName
+			));
             return response;
         }
     }

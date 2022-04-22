@@ -63,7 +63,7 @@ public class ConnectChatroom extends Thread {
                 }
 
                 CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                        "Received TCP connection request from user \"%s\" for chatroom \"%s\"",
+                        "Received subscribe request from user \"%s\" for chatroom \"%s\"",
                         vals[1],
                         vals[0]
                 ));
