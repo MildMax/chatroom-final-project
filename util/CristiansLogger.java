@@ -11,7 +11,7 @@ import java.rmi.RemoteException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-public class CristiansLogger {
+public class CristiansLogger implements Runnable {
 
     private static RMIAccess<ICentralOperations> accessor;
     private static long diff = 0;
@@ -125,5 +125,28 @@ public class CristiansLogger {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         // format and return date
         return sdf.format(date);
+    }
+
+    @Override
+    public void run() {
+        // run Cristians for the duration of program
+        // run immediately and then wait
+        while(true) {
+            try {
+                CristiansLogger.cristiansAlgorithm();
+            } catch (RemoteException | NotBoundException e) {
+                CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                        "There was an error contact the Central Server for Cristian's Algorithm: \"%s\"",
+                        e.getMessage()
+                ));
+            }
+
+            // run every 10 seconds
+            try {
+                Thread.sleep(10000);
+            } catch (InterruptedException e) {
+                CristiansLogger.writeErrorToLog("Wait on Cristian's algorithm thread was interrupted");
+            }
+        }
     }
 }

@@ -33,30 +33,7 @@ public class App {
 
         // initiate Cristians algorithm thread
         CristiansLogger.setCentralAccessor(centralServer);
-        Thread t = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                // run Cristians for the duration of program
-                // run immediately and then wait
-                while(true) {
-                    try {
-                        CristiansLogger.cristiansAlgorithm();
-                    } catch (RemoteException | NotBoundException e) {
-                        CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                                "There was an error contact the Central Server for Cristian's Algorithm: \"%s\"",
-                                e.getMessage()
-                        ));
-                    }
-
-                    // run every 10 seconds
-                    try {
-                        Thread.sleep(10000);
-                    } catch (InterruptedException e) {
-                        CristiansLogger.writeErrorToLog("Wait on Cristian's algorithm thread was interrupted");
-                    }
-                }
-            }
-        });
+        Thread t = new Thread(new CristiansLogger());
         t.start();
 
         // register response contains the Operations port for the Central Server
