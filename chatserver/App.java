@@ -1,5 +1,6 @@
 package chatserver;
 
+import data.ChatroomUserResponse;
 import data.ICentralOperations;
 import data.IChatroomOperations;
 import data.IChatroomUserOperations;
@@ -8,6 +9,13 @@ import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
@@ -26,13 +34,15 @@ public class App {
         this.roomMapLock = new Object();
     }
 
-    public void go(ServerInfo serverInfo) throws RemoteException, NotBoundException {
+    public void go(ServerInfo serverInfo) throws IOException, NotBoundException {
 
         // register Data node with the central server
-        RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(), serverInfo.getCentralServerPort(), "ICentralOperations");
+        RMIAccess<ICentralOperations> centralServer = new RMIAccess<>(serverInfo.getCentralServerHostname(),
+                serverInfo.getCentralServerPort(), "ICentralOperations");
 
         // register response contains the Operations port for the Central Server
-        RegisterResponse registerResponse = centralServer.getAccess().registerChatNode(serverInfo.getHostname(), serverInfo.getOperationsPort());
+        RegisterResponse registerResponse = centralServer.getAccess().registerChatNode(serverInfo.getHostname(),
+                serverInfo.getOperationsPort());
 
         // start operations registry
         Registry operationsRegistry = LocateRegistry.createRegistry(serverInfo.getOperationsPort());
@@ -44,7 +54,10 @@ public class App {
         IChatroomUserOperations userOperationsEngine = new ChatroomUserOperations(this.roomMap, this.roomMapLock, serverInfo, registerResponse.getPort());
         userRegistry.rebind("IChatroomUserOperations", userOperationsEngine);
 
-        // start TCP ports here for receiving client tcp connections for subs, likely in a new thread that can continually wait for new connections
+        // start TCP ports here for receiving client tcp connections for subs,g
+        // likely in a new thread that can continually wait for new connections
+        ServerSocket chatserver = new ServerSocket(serverInfo.getTcpPort());
+
 
         System.out.println(ThreadSafeStringFormatter.format(
                 "Chat Server %s is ready",
@@ -67,7 +80,7 @@ public class App {
         App app = new App();
         try {
             app.go(serverInfo);
-        } catch (RemoteException | NotBoundException e) {
+        } catch (NotBoundException | IOException e) {
             Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
                     "Chat node failed on startup with message: \"%s\"",
                     e.getMessage()
@@ -127,5 +140,31 @@ public class App {
 
 
         return new ServerInfo(args[0], args[1], centralServerPort, args[3], tcpPort, rmiPort, operationsPort);
+    }
+
+
+    //Thread to spin chatrooms
+    private class ConnectChatroom extends Thread {
+        private final Object roomLock;
+        private final Map<String, Chatroom> roomMap;
+        private final Socket client;
+
+        public ConnectChatroom(Map<String, Chatroom> roomMap, Object roomLock, Socket client){
+
+            this.roomMap = roomMap;
+            this.roomLock = roomLock;
+            this.client = client;
+        }
+
+        public void run(){
+
+            synchronized (roomLock) {
+                Chatroom chatroom = this.roomMap.get("");
+                synchronized (roomMapLock) {
+                    //Subscribe client socket to matching chatroom
+                    chatroom.Subscribe(client);
+                }
+            }
+        }
     }
 }

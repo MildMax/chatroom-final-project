@@ -5,6 +5,7 @@ import util.ClientIPUtil;
 import util.Logger;
 import util.ThreadSafeStringFormatter;
 
+import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.LinkedList;
@@ -90,7 +91,7 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
     public ChatroomListResponse getChatrooms() throws RemoteException {
 
         Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                "Recived getChatrooms request from node at \"%s\"",
+                "Received getChatrooms request from node at \"%s\"",
                 ClientIPUtil.getClientIP()
         ));
 
@@ -102,4 +103,5 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
             return new ChatroomListResponse(chatroomNames);
         }
     }
+
 }

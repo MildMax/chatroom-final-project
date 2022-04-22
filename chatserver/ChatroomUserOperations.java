@@ -42,7 +42,8 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
 
         synchronized (serverAccessorLock) {
             synchronized (roomListLock) {
-                // do pub here
+                Chatroom chatroom = roomList.get(chatroomName);
+                chatroom.Publish(message);
             }
 
             try {
