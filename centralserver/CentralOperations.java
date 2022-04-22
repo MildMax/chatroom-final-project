@@ -1,10 +1,8 @@
 package centralserver;
 
 import data.*;
-import util.ClientIPUtil;
-import util.Logger;
-import util.RMIAccess;
-import util.ThreadSafeStringFormatter;
+import util.*;
+
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.List;
@@ -36,7 +34,7 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
     }
 
     @Override
-    public RegisterResponse registerDataNode(String hostname, int dataOperationsPort, int dataParticipantPort) throws RemoteException {
+    public RegisterResponse registerDataNode(String hostname, int dataOperationsPort, int dataParticipantPort, List<String> chatrooms) throws RemoteException {
 
         Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
                 "Registering data node at \"%s\" with operations port \"%d\" and participant port \"%d\"",
@@ -51,6 +49,18 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
 
         synchronized (dataNodeParticipantsLock) {
             dataNodesParticipants.add(new RMIAccess<>(hostname, dataParticipantPort, "IDataParticipant"));
+        }
+
+        // use list of existing chatrooms tracked by data node to spin up chatrooms at available chat servers
+        for (String room : chatrooms) {
+            ChatroomResponse r = CentralUserOperations.innerCreateChatroom(room, this.chatroomNodeLock, this.chatroomNodes);
+            if (r.getStatus() == ResponseStatus.FAIL) {
+                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                        "Unable to spin up chatroom \"%s\": \"%s\"",
+                        room,
+                        r.getMessage()
+                ));
+            }
         }
 
         return new RegisterResponse(serverInfo.getCoordinatorPort());

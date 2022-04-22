@@ -16,9 +16,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class App {
 
@@ -45,9 +43,6 @@ public class App {
         Thread t = new Thread(new CristiansLogger());
         t.start();
 
-        // register response contains the Coordinator port for the Central Server
-        RegisterResponse registerResponse = centralServer.getAccess().registerDataNode(serverInfo.getHostname(), serverInfo.getOperationsPort(), serverInfo.getParticipantPort());
-
         synchronized(userMapLock) {
             File users = new File("files_" + serverInfo.getId() + "/users.txt");
             // Read from users file
@@ -67,6 +62,7 @@ public class App {
             }
         }
 
+        List<String> roomNames = new LinkedList<>();
         synchronized(channelMapLock) {
     		File chatrooms = new File("files_" + serverInfo.getId() + "/chatrooms.txt");
     		// Read from chatrooms file
@@ -84,7 +80,15 @@ public class App {
                 CristiansLogger.writeErrorToLog("Unable to find or create chatrooms.txt for server; shutting down server");
                 return;
 			}
+            roomNames.addAll(channelMap.keySet());
         }
+
+        // register response contains the Coordinator port for the Central Server
+        RegisterResponse registerResponse = centralServer.getAccess().registerDataNode(serverInfo.getHostname(),
+                serverInfo.getOperationsPort(),
+                serverInfo.getParticipantPort(),
+                roomNames
+        );
 
         // create directory for chatroom logs
         File chatLogdir = new File("files_" + serverInfo.getId() + "/chatlogs");

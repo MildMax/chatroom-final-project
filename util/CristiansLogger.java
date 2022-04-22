@@ -36,7 +36,7 @@ public class CristiansLogger implements Runnable {
             CristiansLogger.logWriter = new BufferedWriter(new FileWriter(logFile, true));
         } catch (IOException e) {
             // if error generating log write stream, print error to stdout
-            System.out.println(String.format("There was an error initializing Server log file: %s", e.getMessage()));
+            System.out.println(String.format("There was an error initializing log file: %s", e.getMessage()));
         }
     }
 
@@ -56,10 +56,10 @@ public class CristiansLogger implements Runnable {
             CristiansLogger.logWriter.flush();
         } catch (IOException e) {
             // if error writing to log, print error to stdout
-            System.out.println(ThreadSafeStringFormatter.format("There was an error writing to the Server log: %s", e.getMessage()));
+            System.out.println(ThreadSafeStringFormatter.format("There was an error writing to the log: %s", e.getMessage()));
         } catch (NullPointerException e) {
             System.out.println(ThreadSafeStringFormatter.format(
-                    "ERROR ServerLogger class was not initialized: attempting to write: %s",
+                    "ERROR CristiansLogger class was not initialized: attempting to write: %s",
                     log
             ));
         }

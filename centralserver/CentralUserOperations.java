@@ -530,7 +530,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         return accessor;
     }
 
-    private synchronized static ChatroomResponse innerCreateChatroom(String chatroomName,
+    public synchronized static ChatroomResponse innerCreateChatroom(String chatroomName,
                                                         Object chatroomNodeLock,
                                                         List<RMIAccess<IChatroomOperations>> chatroomNodes) throws RemoteException {
         boolean chatroomExists = false;
