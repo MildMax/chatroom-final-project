@@ -49,22 +49,22 @@ public class App {
         RegisterResponse registerResponse = centralServer.getAccess().registerDataNode(serverInfo.getHostname(), serverInfo.getOperationsPort(), serverInfo.getParticipantPort());
 
         synchronized(userMapLock) {
-        		File users = new File("files_" + serverInfo.getId() + "/users.txt");
-        		// Read from users file
-        		try {
-        			// Create file if it doesn't exist yet.
-        			users.createNewFile();
-					BufferedReader br = new BufferedReader(new FileReader(users));
-					String user;
-					while ((user = br.readLine()) != null) {
-						String[] userpass = user.split(":");
-						userMap.put(userpass[0], userpass[1]);
-					}
-					br.close();
-				} catch (IOException e) {
-					CristiansLogger.writeErrorToLog("Unable to find or create users.txt for server; shutting down server");
-					return;
-				}
+            File users = new File("files_" + serverInfo.getId() + "/users.txt");
+            // Read from users file
+            try {
+                // Create file if it doesn't exist yet.
+                users.createNewFile();
+                BufferedReader br = new BufferedReader(new FileReader(users));
+                String user;
+                while ((user = br.readLine()) != null) {
+                    String[] userpass = user.split(":");
+                    userMap.put(userpass[0], userpass[1]);
+                }
+                br.close();
+            } catch (IOException e) {
+                CristiansLogger.writeErrorToLog("Unable to find or create users.txt for server; shutting down server");
+                return;
+            }
         }
 
         synchronized(channelMapLock) {
