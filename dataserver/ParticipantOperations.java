@@ -22,7 +22,6 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 
     private final String coordinatorHostname;
     private final int coordinatorPort;
-    private final String serverId;
     private final DataOperations operationsEngine;
     private final Path dir;
     private final Map<Integer, Transaction> transactionMap;
@@ -32,7 +31,6 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     public ParticipantOperations(String coordinatorHostname, int coordinatorPort, String serverId, DataOperations operationsEngine) throws RemoteException {
         this.coordinatorHostname = coordinatorHostname;
         this.coordinatorPort = coordinatorPort;
-        this.serverId = serverId;
         this.operationsEngine = operationsEngine;
         this.dir =  Paths.get("files_" + serverId + "/");
         this.transactionMap = Collections.synchronizedMap(new HashMap<>());
@@ -77,11 +75,20 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 				t.toString()
 		));
 
-		decisionThreadMap.get(t.getTransactionIndex()).setFinished();
+		// set the decision thread associated to the transaction to be finished
+		// so the local data participant does not call getDecision on a transaction
+		// it has already committed
+		CoordinatorDecisionThread th = decisionThreadMap.get(t.getTransactionIndex());
+		if (th != null) {
+			th.setFinished();
+		}
 		decisionThreadMap.remove(t.getTransactionIndex());
 
-		// Write to physical file (call have committed) (only if transaction op is create chatroom)
+		// determine the type of operation provided in the transaction
     	switch (t.getOp()) {
+    		// if create user, verify that user does not exist and then write the
+			// username:password combination to the users.txt file and create the user
+			// in local memory
     		case CREATEUSER:
     			if (operationsEngine.userExists(t.getKey())) {
     				// enforce at most once semantics if multiple concurrent requests are received
@@ -95,6 +102,9 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     			writeFile("users.txt", t.getKey() + ":" + t.getValue());
     			operationsEngine.createUser(t.getKey(), t.getValue());
     			break;
+			// if create chatroom, verify that the chatroom des not exist, and then write the
+			// chatroomname:username combination to the chatrooms.txt file and track
+			// the chatroom in local memory
     		case CREATECHATROOM:
     			if (operationsEngine.chatroomExists(t.getKey())) {
     				// enforce at most once semantics if multiple concurrent requests are received
@@ -105,6 +115,9 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     			writeFile("chatrooms.txt", t.getKey() + ":" + t.getValue());
     			operationsEngine.createChatroom(t.getKey(), t.getValue());
     			break;
+			// if delete chatroom, ensure that the chatroom does not exist
+			// then, delete the log file associated with the chatroom
+			// and delete the chatroom from local memory
     		case DELETECHATROOM:
 				if (!operationsEngine.chatroomExists(t.getKey())) {
 					// enforce at most once semantics if multiple concurrent requests are received
@@ -125,9 +138,12 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 							));
 				}
     			break;
+			// if log message, write the message store in the transaction value to the
+			// chatlog file for the chatroom
     		case LOGMESSAGE:
     			writeFile("chatlogs/" + t.getKey() + ".txt", t.getValue());
     			break;
+			// otherwise, log that an invalid command has been received
     		default:
     			CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
     					"Unable to operate on invalid command \"%s\"",
@@ -135,8 +151,10 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 				));
     			break;
     	}
+
+    	// after operation has been run, contact coordinator and indicate that the local data participant node
+		// haveCommitted on the provided transaction
     	RMIAccess<ICentralCoordinator> coordinator = new RMIAccess<>(coordinatorHostname, coordinatorPort, "ICentralCoordinator");
-    	
 		ICentralCoordinator coord;
 		try {
 			coord = coordinator.getAccess();
@@ -148,13 +166,17 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 					coordinatorPort
 			));
 		}
-    	
+
+		// remove the transaction from the local transaction map
     	transactionMap.remove(t.getTransactionIndex());
     }
 
     @Override
     public void doAbort(Transaction t) throws RemoteException {
 
+		// set the decision thread associated to the transaction to be finished
+		// so the local data participant does not call getDecision on a transaction
+		// it has already aborted
 		CoordinatorDecisionThread th = decisionThreadMap.get(t.getTransactionIndex());
 		if (th != null) {
 			th.setFinished();
@@ -179,8 +201,11 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
 			// Creates the file if it doesn't exist, if it does exist it will append to the file.
 			FileWriter file = new FileWriter(dir.resolve(fileName).toString(), true);
 			BufferedWriter writer = new BufferedWriter(file);
+			// write data
 			writer.write(data);
+			// write newline
 			writer.newLine();
+			// clean resources
 			writer.close();
 			return true;
 		} catch (IOException e) {

@@ -5,7 +5,6 @@ import data.IDataOperations;
 import data.IDataParticipant;
 import data.RegisterResponse;
 import util.CristiansLogger;
-import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
@@ -72,18 +71,18 @@ public class App {
 
         // initialize the chatrooms.txt file for tracking chatroom and username data
         // if non exists, create the file
-        // if the file exists 
+        // if the file exists, read existing chatrooms into memory
         CristiansLogger.writeMessageToLog("Creating chatrooms.txt file if none exists");
         List<String> roomNames = new LinkedList<>();
         synchronized(channelMapLock) {
     		File chatrooms = new File("files_" + serverInfo.getId() + "/chatrooms.txt");
-    		// Read from chatrooms file
     		try {
     			// Create file if it doesn't exist yet.
     			chatrooms.createNewFile();
 				BufferedReader br = new BufferedReader(new FileReader(chatrooms));
 				String channel;
                 CristiansLogger.writeMessageToLog("Reading existing chatrooms into memory...");
+                // Read from chatrooms file
 				while ((channel = br.readLine()) != null) {
 					String[] channeluser = channel.split(":");
 					channelMap.put(channeluser[0], channeluser[1]);
@@ -106,6 +105,8 @@ public class App {
 
 
         // create directory for chatroom logs
+        // if the directory does not exist, create the directory
+        // contains logs for individual chatrooms
         File chatLogdir = new File("files_" + serverInfo.getId() + "/chatlogs");
         if (!chatLogdir.exists()) {
             CristiansLogger.writeMessageToLog("Creating chatlogs directory");

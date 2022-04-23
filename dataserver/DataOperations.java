@@ -40,6 +40,8 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 		));
 
         synchronized (userMapLock) {
+        	// if the map of users does not contain the user, then user does not exist
+			// indicate user cannot be verified
             if (!userMap.containsKey(username)) {
             	CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
             			"Unable to verify user \"%s\"",
@@ -48,6 +50,8 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
                 return new Response(ResponseStatus.FAIL, "User does not exist");
             }
 
+            // if the password provided does not match the user's password, indicate
+			// that the user cannot be verified
             if (userMap.get(username).compareTo(password) != 0) {
 				CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 						"Unable to verify user \"%s\"",
@@ -56,6 +60,8 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
                 return new Response(ResponseStatus.FAIL, "User provided an invalid password");
             }
 
+            // otherwise, username and password are correct, indicate user has been
+			// successfully verified
             CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
             		"Verified user \"%s\"",
 					username
@@ -75,6 +81,8 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 		));
 
     	synchronized (chatroomMapLock) {
+    		// ensure that the chatroom exists
+			// if not, indicate chatroom does not exist and return fail response
     		if (!chatroomMap.containsKey(chatroomName)) {
     			CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
     					"Unable to verify ownership of non-existent chatroom \"%s\" for user \"%s\"",
@@ -83,6 +91,8 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 				));
     			return new Response(ResponseStatus.FAIL, "Cannot verify ownership of non-existent chatroom");
 			}
+    		// if the username associated with the chatroom does not match the username provided,
+			// indicate user does not own chatroom and cannot delete the chatroom
             if (chatroomMap.get(chatroomName).compareTo(username) != 0) {
             	CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
             			"Unable to verify user \"%s\" owns chatroom \"%s\"",
@@ -92,6 +102,8 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
                 return new Response(ResponseStatus.FAIL, "You are not the owner of this chatroom");
             }
 
+            // otherwise, indicate that the user does own the chatroom and is allowed
+			// to delete resources related to the chatroom from the application
 			CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 					"Successfully verified user \"%s\" owns chatroom \"%s\"",
 					username,
@@ -110,6 +122,8 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 				username
 		));
 
+    	// verify that the user exists by determining if their username is currently
+		// tracked in the user map
 		return userMap.containsKey(username);
 	}
 	
@@ -121,6 +135,8 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 				chatroom
 		));
 
+		// verify the chatroom exists by checking that there is a key in the chatroom map corresponding
+		// to the provided chatroom name
 		return chatroomMap.containsKey(chatroom);
 	}
 
@@ -132,14 +148,17 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 		));
 
 		synchronized (chatroomMapLock) {
+			// remove the chatroom from the chatroom map
 			chatroomMap.remove(chatroomName);
 
+			// access the chatrooms.txt file responsible for tracking existing chatrooms in the system
 			String filename = dir.resolve("chatrooms.txt").toString();
-
 			try {
 				// Creates the file if it doesn't exist, if it does exist it will append to the file.
 				FileWriter file = new FileWriter(filename, false);
 				BufferedWriter writer = new BufferedWriter(file);
+				// write the chatrooms that are still tracked by the data server into the chatrooms.txt file
+				// write in format <chatroom name>:<username>
 				for (String cName : chatroomMap.keySet()) {
 					writer.write(ThreadSafeStringFormatter.format(
 							"%s:%s",
@@ -150,6 +169,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 				}
 				writer.close();
 			} catch (IOException e) {
+				// if there is an error writing to the file, log the error and return
 				CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
 						"Something went very wrong writing to file %s",
 						filename
@@ -158,6 +178,7 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 			}
 		}
 
+		// if all operations succeed, log success
 		CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
 				"Successfully deleted chatroom \"%s\"",
 				chatroomName
@@ -171,6 +192,8 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 				username
 		));
 
+    	// if the provided username does not exist, place username and password pair into the
+		// local usermap
 		synchronized (userMapLock) {
 			if (!userMap.containsKey(username)) {
 				userMap.put(username, password);
@@ -188,8 +211,11 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
 		));
 
 		synchronized(chatroomMapLock) {
+			// if the provided chatroom is not being checked, add the chatroom name and the user that
+			// created the chatroom to the local chatroom map
 			if (!chatroomMap.containsKey(chatroomName)) {
 				chatroomMap.put(chatroomName, username);
+				//create a log file for the chatroom to track logged messages for the chatroom
 				File chatLog = new File(dir.toString() + "/chatlogs/" + chatroomName + ".txt");
 				try {
 					if (chatLog.createNewFile()) {
