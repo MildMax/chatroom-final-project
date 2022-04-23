@@ -390,7 +390,7 @@ public class App {
 
     public static void main(String[] args) {
 
-        Logger.loggerSetup("client");
+        Logger.loggerSetup("Client");
 
         ServerInfo serverInfo = null;
         try {
