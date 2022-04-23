@@ -9,6 +9,7 @@ import util.CristiansLogger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
+import javax.swing.plaf.TableHeaderUI;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -41,9 +42,27 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
                 ClientIPUtil.getClientIP()
         ));
 
+        // publish the message along with the user's name to all of the users subscribed to the given chatroom
         synchronized (serverAccessorLock) {
             synchronized (roomListLock) {
-                this.roomList.get(chatroomName).publish(username + " >> " + message);
+                // get the chatroom to publish the message to
+                Chatroom chatroom = this.roomList.get(chatroomName);
+
+                // if the  returned chatroom object is not null, publish the message
+                if (chatroom != null) {
+                    chatroom.publish(username + " >> " + message);
+                }
+                // otherwise, log that the chatroom the user is trying to publish to is nonexistent and return
+                // out of the method
+                else {
+                    CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                            "User \"%s\" attempted to publish message \"%s\" to non-existent chatroom \"%s\"",
+                            username,
+                            message,
+                            chatroomName
+                    ));
+                    return;
+                }
             }
         }
 
@@ -55,16 +74,21 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
                 message
         ));
 
+        // once the message has been published, log the message with the central server
         synchronized (this.logMessageLock) {
             try {
                 boolean success = false;
-                // retry log until it succeeds
+                // retry logging the message until it succeeds
                 while (!success) {
 
                     Response r = centralServerAccessor.getAccess().logChatMessage(chatroomName, username + " >> " + message);
+
+                    // if the request succeeds, set success to true to break out of the retry loop
                     if (r.getStatus() == ResponseStatus.OK) {
                         success = true;
-                    } else {
+                    }
+                    // otherwise log that the attempt failed and continue trying
+                    else {
                         CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
                                 "Failed to log message \"%s\" from user \"%s\" at \"%s\" for chatroom \"%s\", retrying...",
                                 message,
@@ -103,8 +127,20 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
         ));
 
         synchronized (roomListLock) {
+            // get the chatroom to publish the message to
             Chatroom chatroom = this.roomList.get(chatroomName);
-            chatroom.publish("System >> " + username + " has joined the chat");
+            // if the chatroom is not null, it exists, publish join message
+            if (chatroom != null) {
+                chatroom.publish("System >> " + username + " has joined the chat");
+            }
+            // otherwise log the failure
+            else {
+                CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                        "User \"%s\" attempted to issue a join chatroom message to non-existent chatroom \"%s\"",
+                        username,
+                        chatroomName
+                ));
+            }
         }
 
     }
@@ -120,9 +156,20 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
         ));
 
         synchronized (roomListLock) {
+            // get the chatroom that the user wishes to leave
             Chatroom chatroom = this.roomList.get(chatroomName);
-            chatroom.unsubscribe(username);
-            chatroom.publish("System >> " + username + " has left the chat");
+            if (chatroom != null) {
+                // if the chatroom is not null, unsubscribe the user from the chatroom
+                // and publish the leave chatroom message to the remaining subscribers
+                chatroom.unsubscribe(username);
+                chatroom.publish("System >> " + username + " has left the chat");
+            } else {
+                CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                        "User \"%s\" attempted to leave non-existent chatroom \"%s\"",
+                        username,
+                        chatroomName
+                ));
+            }
         }
 
     }

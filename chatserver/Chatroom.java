@@ -28,6 +28,8 @@ public class Chatroom {
                 username,
                 this.roomName
         ));
+
+        // associate the socket with the user's username so it can be retrieved when the user leaves the chatroom
         synchronized (socketMapLock) {
             this.socketMap.put(username, s);
         }
@@ -40,6 +42,8 @@ public class Chatroom {
                 this.roomName
         ));
 
+        // locate the socket associated with the user using their username and remove the socket
+        // from the socket map so the user no longer receives published messages
         synchronized (socketMapLock) {
             Socket s = socketMap.get(username);
             try {
@@ -55,6 +59,7 @@ public class Chatroom {
 
     public void publish(String message) {
         synchronized (socketMapLock) {
+            // iterate through the socket map and notify each user via their dedicated socket
             for (String user : socketMap.keySet()) {
                 CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
                         "Publishing message \"%s\" to user \"%s\"",
@@ -63,6 +68,7 @@ public class Chatroom {
                 ));
                 PrintWriter out = null;
                 try {
+                    // write message to socket
                     out = new PrintWriter(new OutputStreamWriter(socketMap.get(user).getOutputStream()), true);
                     out.println(message);
                 } catch (IOException e) {
@@ -78,6 +84,8 @@ public class Chatroom {
     }
 
     public int getUserCount() {
+        // retrieve the number of users currently subscribed to this chatroom
+        // used for load balancing purposes
         synchronized (socketMapLock) {
             return socketMap.size();
         }

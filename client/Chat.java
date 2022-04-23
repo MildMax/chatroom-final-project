@@ -72,8 +72,6 @@ class Chat extends JFrame implements ActionListener {
         // create a panel to add buttons and textfield
         JPanel display = new JPanel(new BorderLayout());
 
-        // set layout
-
         // set text layout
         JPanel mainText = new JPanel();
         textDisplay = new JTextArea();
@@ -86,7 +84,7 @@ class Chat extends JFrame implements ActionListener {
         mainScroll.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         mainScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         mainText.add(mainScroll, BorderLayout.CENTER);
-        textDisplay.setText("System >> Welcome to the chatroom! Please be civil.");
+
 
         display.add(mainText, BorderLayout.NORTH);
 
@@ -122,7 +120,6 @@ class Chat extends JFrame implements ActionListener {
         frame.add(display);
         frame.setSize(700, 520);
         frame.setResizable(false);
-        frame.setVisible(true);
 
         Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
                 "Attempting to establish TCP connection with chat server at \"%s:%d\"...",
@@ -130,7 +127,7 @@ class Chat extends JFrame implements ActionListener {
                 Chat.tcpPort
         ));
 
-        // initialize socket
+        // initialize socket for client to receive messages from the chat server
         Socket s = Chat.establishSocket();
 
         if (s == null) {
@@ -162,7 +159,7 @@ class Chat extends JFrame implements ActionListener {
                 Chat.hostname,
                 Chat.rmiPort
         ));
-        // set up accessor
+        // set up accessor to publish messages to the server
         Chat.chatroomAccessor = new RMIAccess<>(Chat.hostname, Chat.rmiPort, "IChatroomUserOperations");
         try {
             Chat.chatroomAccessor.getAccess().joinChatroom(Chat.chatroomName, Chat.username);
@@ -186,6 +183,8 @@ class Chat extends JFrame implements ActionListener {
                 Chat.rmiPort
         ));
 
+        // create window listener to clean up resources associated with this chat window/session
+        // on window close
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
@@ -194,17 +193,23 @@ class Chat extends JFrame implements ActionListener {
                 } catch (RemoteException | NotBoundException err) {
                     Logger.writeErrorToLog("Unable to access chatroom server for leave operation");
                 }
+                // interrupt the receive thread
                 receiveThread.interrupt();
+                // remove logout shutdown hook
                 Runtime.getRuntime().removeShutdownHook(Chat.chatThread);
+
+                // close the TCP socket connection
                 try {
                     s.close();
                 } catch (IOException ioException) {
                     Logger.writeErrorToLog("Failed to close socket TCP connection");
                 }
+                // let the command line prompt know that it can continue prompting user for input
                 synchronized (Chat.chatWait) {
                     chatWait.notify();
                 }
 
+                // log the chatroom leave and finish closing the window
                 Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
                         "Leaving chatroom \"%s\" at chatroom server \"%s:%d\"",
                         Chat.chatroomName,
@@ -214,6 +219,11 @@ class Chat extends JFrame implements ActionListener {
                 super.windowClosing(e);
             }
         });
+
+        // make frame visible
+        frame.setVisible(true);
+        // set initial message to the user
+        textDisplay.setText("System >> Welcome to the chatroom! Please be civil.");
     }
 
     // if the button is pressed
@@ -221,8 +231,11 @@ class Chat extends JFrame implements ActionListener {
     @Override
     public void actionPerformed(ActionEvent e) {
         String s = e.getActionCommand();
+        // if the user clicks the submit button, collect the text from the text entry window
+        // and publish to the chat server
         if (s.equals("submit")) {
 
+            // grab user text
             String message = textEntry.getText();
 
             Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
@@ -234,10 +247,12 @@ class Chat extends JFrame implements ActionListener {
 
             // send message to server via RMI accessor
             try {
+                // surround with reestablish lock so that the user does not try to send a message while a connection
+                // is being reestablished
                 synchronized (Chat.reestablishLock) {
                     chatroomAccessor.getAccess().chat(chatroomName, username, message);
                 }
-                // set the text of field to blank
+                // set the text of field to blank after the message has been sent
                 textEntry.setText("");
             } catch (RemoteException | NotBoundException err) {
                 Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
@@ -269,15 +284,18 @@ class Chat extends JFrame implements ActionListener {
 
         @Override
         public void run() {
+            // create a reader to parse data received from the server via the TCP connection
             try {
                 this.socketReader = new BufferedReader(new InputStreamReader(this.receiveSocket.getInputStream()));
             } catch (IOException e) {
                 e.printStackTrace();
             }
 
+            // continue to receive until the window is closed and the user leaves the chatroom
             while(true) {
                 String message;
                 try {
+                    // receive only when information becomes available
                     while ((message = socketReader.readLine()) != null) {
 
                         Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
@@ -290,25 +308,36 @@ class Chat extends JFrame implements ActionListener {
                         // write display to the main part of the window
                         textDisplay.setText(textDisplay.getText() + "\n" + message);
                     }
-                } catch (IOException e) {
+                }
+                // if IO exception occurs, chat server crashed or connection was lost to the TCP socket
+                // catch this error and issue a reestablish request to the main server to determine
+                // whether the chat server has actually crashed, and if it has, connect to the reestablished
+                // chatroom on a new chat server node
+                catch (IOException e) {
                     synchronized (Chat.reestablishLock) {
                         Logger.writeErrorToLog("Lost connection with chatroom server; reestablishing connection...");
                         ChatroomResponse r = null;
+                        // issue reestablish request for the chatroom
                         try {
                             r = centralServer.getAccess().reestablishChatroom(Chat.chatroomName, Chat.username);
                             if (r.getStatus() == ResponseStatus.FAIL) {
                                 Logger.writeErrorToLog("Failed to reestablish connection with chatroom");
-                                // exit out of this class
+                                // exit out of the session if there is an error reestablishing the chatroom
                                 frame.dispatchEvent(new WindowEvent(frame, WindowEvent.WINDOW_CLOSING));
                                 return;
                             }
 
+                            // collect the data regarding the new chat server where the chatroom is now being
+                            // hosted
                             Chat.hostname = r.getAddress();
                             Chat.rmiPort = r.getRegistryPort();
                             Chat.tcpPort = r.getTcpPort();
 
+                            // create new RMI access object for the new chat server
                             Chat.chatroomAccessor = new RMIAccess<>(Chat.hostname, Chat.rmiPort, "IChatroomUserOperations");
+                            // establish new TCP connection to the new chat server
                             this.receiveSocket = Chat.establishSocket();
+                            // if socket cannot be established, close window and log error
                             if (this.receiveSocket == null) {
                                 Logger.writeErrorToLog("Failed to reestablish TCP connection with chatroom");
                                 // exit out of this class
@@ -316,6 +345,7 @@ class Chat extends JFrame implements ActionListener {
                                 return;
                             }
 
+                            // create new reader for the newly established socket
                             this.socketReader = new BufferedReader(new InputStreamReader(this.receiveSocket.getInputStream()));
 
                         } catch (NotBoundException | IOException err) {
@@ -337,7 +367,9 @@ class Chat extends JFrame implements ActionListener {
     private static Socket establishSocket() {
         Socket s = null;
         try {
+            // create a socket using the hostname and tcp port stored in the chat class
             s = new Socket(Chat.hostname, Chat.tcpPort);
+            // create input and output streams
             PrintWriter out = new PrintWriter(new OutputStreamWriter(s.getOutputStream()), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
 
@@ -349,9 +381,12 @@ class Chat extends JFrame implements ActionListener {
                     Chat.tcpPort
             ));
 
+            // send initial message with the name of the chatroom and the user's username such that the socket
+            // can be subscribed to the correct chatroom and the socket can be associated with this user
             out.println(Chat.chatroomName + ":" + Chat.username);
             String response = in.readLine();
 
+            // if the connection request fails (is not "success"), return null to indicate operation failed
             if (response.compareTo("success") != 0) {
                 return null;
             }

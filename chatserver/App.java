@@ -102,6 +102,8 @@ public class App {
             ));
         }
 
+        // parse port data for the chat server
+
         int centralServerPort;
         try {
             centralServerPort = Integer.parseInt(args[2]);

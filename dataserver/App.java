@@ -46,6 +46,9 @@ public class App {
         t.start();
 
 
+        // initialize users.txt file for tracking user data
+        // if non exists, create the file
+        // if the file exists, read existing users into the user map
         CristiansLogger.writeMessageToLog("Creating users.txt file if none exists");
         synchronized(userMapLock) {
             File users = new File("files_" + serverInfo.getId() + "/users.txt");
@@ -67,6 +70,9 @@ public class App {
             }
         }
 
+        // initialize the chatrooms.txt file for tracking chatroom and username data
+        // if non exists, create the file
+        // if the file exists 
         CristiansLogger.writeMessageToLog("Creating chatrooms.txt file if none exists");
         List<String> roomNames = new LinkedList<>();
         synchronized(channelMapLock) {

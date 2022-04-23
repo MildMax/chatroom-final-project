@@ -39,6 +39,8 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
 				coordinatorDecision,
 				t.toString()
 		));
+
+    	// track decision on transaction using unique transaction index
         transactionDecisions.put(t.getTransactionIndex(), coordinatorDecision);
     }
 
@@ -72,9 +74,11 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
 		count = commitMap.get(transactionId);
 		count--;
 
+		// if the count is 0, then all participants have committed
 		if (count == 0) {
 			commitMap.remove(transactionId);
 
+			// notify the wait object in the doCommit thread to complete transaction
 			Object waitObject = objectMap.get(transactionId);
 			if (waitObject != null) {
 				synchronized (waitObject) {
@@ -87,7 +91,9 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
 					"All participants have committed on transaction \"%s\"",
 					t.toString()
 			));
-		} else {
+		}
+		// otherwise, replace count to indicate another participant has committed
+		else {
 			commitMap.put(transactionId, count);
 		}
     }
@@ -111,13 +117,19 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
 	public void addWaitCommit(Transaction t, Object waitObject) {
 		int transactionId = t.getTransactionIndex();
 		int count = 0;
+
+		// if transaction is already being tracked, pull the current number of outstanding participants
+		// awaiting commit
 		if (commitMap.containsKey(transactionId)) {
 			count = commitMap.get(transactionId);
 		}
-		
+
+		// if there is no wait object associated with the transaction, associate wait object with transaction id
 		if (!objectMap.containsKey(transactionId)) {
 			objectMap.put(transactionId, waitObject);
 		}
+
+		// track transaction and the number of participants awaiting commit
 		commitMap.put(t.getTransactionIndex(), ++count);
 	}
 }

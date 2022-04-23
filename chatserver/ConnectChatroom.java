@@ -24,6 +24,7 @@ public class ConnectChatroom extends Thread {
     @Override
     public void run() {
 
+        // create a new server socket to accept incoming client TCP connections
         ServerSocket serverSocket;
         try {
             serverSocket = new ServerSocket(this.tcpPort);
@@ -40,7 +41,9 @@ public class ConnectChatroom extends Thread {
 
             Socket clientSocket;
             try {
+                // accept the client connection and track the new client socket in clientSocket
                 clientSocket = serverSocket.accept();
+                // set up reader and writer for the socket for initial communication with client
                 PrintWriter out = new PrintWriter(new OutputStreamWriter(clientSocket.getOutputStream()), true);
                 BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
@@ -50,12 +53,25 @@ public class ConnectChatroom extends Thread {
                         clientSocket.getPort()
                 ));
 
-
+                // get the inital client message
+                // in the format <chatroom>:<username>
+                // <chatroom> is used to find the correct chatroom
+                // <username> is used to associate the client socket with the appropriate user
                 String clientMessage = in.readLine();
                 String[] vals = clientMessage.split(":");
 
+                // if the length of vals is not 2, it is either missing or has extra argument
+                // log the error and continue receiving new connections
                 if (vals.length != 2) {
+
+                    CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                            "Initial client message \"%s\" did not meet <chatroom>:<user> format",
+                            clientMessage
+                    ));
+
+                    // indicate to the client that they cannot be subscribed to a chatroom
                     out.println("fail");
+                    // close resources associated with the socket
                     in.close();
                     out.close();
                     clientSocket.close();
@@ -69,14 +85,28 @@ public class ConnectChatroom extends Thread {
                 ));
 
                 synchronized (this.roomMapLock) {
+                    // get the room the user wants to subscribe to
                     Chatroom chatroom = roomMap.get(vals[0]);
+
+                    // if the chatroom is null, it does not exist, log the error and continue receiving
+                    // new client connections
                     if (chatroom == null) {
+
+                        CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                                "Client \"%s\" attempted to subscribe to non-existent chatroom \"%s\"",
+                                vals[1],
+                                vals[0]
+                        ));
+
+                        // indicate to client that the connection request failed
                         out.println("fail");
+                        // close resources associated with the client socket
                         in.close();
                         out.close();
                         clientSocket.close();
                         continue;
                     }
+                    // if chatroom is not null, subscribe the client to the chatroom
                     chatroom.subscribe(clientSocket, vals[1]);
                 }
 

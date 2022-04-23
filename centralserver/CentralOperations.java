@@ -43,10 +43,12 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
                 dataParticipantPort
         ));
 
+        // track the operations RMI interface for the data node
         synchronized (dataNodeOperationsLock) {
             dataNodesOperations.add(new RMIAccess<>(hostname, dataOperationsPort, "IDataOperations"));
         }
 
+        // track the participants RMI interface for the data node
         synchronized (dataNodeParticipantsLock) {
             dataNodesParticipants.add(new RMIAccess<>(hostname, dataParticipantPort, "IDataParticipant"));
         }
@@ -57,7 +59,10 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
                     "Spinning up existing chatroom \"%s\" from data server...",
                     room
             ));
+            // create the chatroom
             ChatroomResponse r = CentralUserOperations.innerCreateChatroom(room, this.chatroomNodeLock, this.chatroomNodes);
+            // if chatroom cannot be spun up, log error (may be case that the charoom has already been spun up
+            // from another data node
             if (r.getStatus() == ResponseStatus.FAIL) {
                 Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
                         "Unable to spin up chatroom \"%s\": \"%s\"",
@@ -67,6 +72,7 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
             }
         }
 
+        // return response telling data node where it can contact the central servers coordinator RMI interface
         return new RegisterResponse(serverInfo.getCoordinatorPort());
     }
 
@@ -79,10 +85,12 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
                 port
         ));
 
+        // track chatroom operations RMI interface for the chat server
         synchronized (chatroomNodeLock) {
             chatroomNodes.add(new RMIAccess<>(hostname, port, "IChatroomOperations"));
         }
 
+        // return response telling the chat server node where it can forward chat messages to be logged
         return new RegisterResponse(serverInfo.getChatroomPort());
     }
 

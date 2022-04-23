@@ -51,6 +51,7 @@ public class TwoPhaseCommit {
                 t.toString()
         ));
 
+        // create a canCommit thread for each participant data node in the system
         List<CanCommitThread> commitThreads = new LinkedList<>();
         synchronized (dataNodeParticipantsLock) {
             for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
@@ -59,12 +60,18 @@ public class TwoPhaseCommit {
             }
         }
 
+        // initiate canCommit for each data node in the system
         for (CanCommitThread commitThread : commitThreads) {
             commitThread.start();
         }
 
+        // if all participants do not indicate NO, the "true" value will indicate to the coordinator that
+        // all participants are ready and should issue a doCommit request to each participant
         boolean success = true;
+
+        // collect the thread from each data node
         for (CanCommitThread thread : commitThreads) {
+            // collect thread
             try {
                 thread.join();
             } catch (InterruptedException e) {
@@ -77,7 +84,8 @@ public class TwoPhaseCommit {
                 success = false;
                 continue;
             }
-
+            // if the result is no, set success to false to indicate to central coordinator that it should issue
+            // a doAbort request to all participant nodes
             if (thread.getResult() == Ack.NO) {
                 success = false;
             }
@@ -99,11 +107,16 @@ public class TwoPhaseCommit {
                 t.toString()
         ));
 
+        // create a wait object that will be notified after all contacted participants indicate haveCommitted
         Object waitObject = new Object();
+
+        // iterate through the list of data node participants and issue a doCommit request for the provided transaction
         synchronized (dataNodeParticipantsLock) {
             for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
                 Thread commitThread = null;
                 try {
+
+                    // create a thread that issues a doCommit request to the participant
                     commitThread = new Thread(new Runnable() {
                         IDataParticipant dataNode = participant.getAccess();
 
@@ -119,7 +132,9 @@ public class TwoPhaseCommit {
                             }
                         }
                     });
-                } catch (Exception e) {
+                }
+                // if there is an error starting the thread, log the error and continue iterating through data nodes
+                catch (Exception e) {
                     Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
                             "Unable to contact data node at \"%s:%d\" during doCommit, skipping...",
                             participant.getHostname(),
@@ -128,12 +143,17 @@ public class TwoPhaseCommit {
                     continue;
                 }
 
+                // start thread and indicate to the central coordinator that it should wait for this participant
+                // to indicate haveCommitted before continuing execution via the addWaitCommit method
                 commitThread.start();
                 coordinator.addWaitCommit(t, waitObject);
             }
         }
+
+        // wait for all participants to indicate haveCommitted before finishing the transaction
         synchronized (waitObject) {
             try {
+                // set wait object to timeout after 1 second to promote liveness in the system
                 waitObject.wait(1000);
             } catch (InterruptedException e) {
                 Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
@@ -153,8 +173,11 @@ public class TwoPhaseCommit {
         ));
 
         synchronized (dataNodeParticipantsLock) {
+            // iterate through data node participants and issue a doAbort request to each one
             for (RMIAccess<IDataParticipant> participant : dataNodesParticipants) {
                 try {
+
+                    // create a thread for that issues a doAbort request to the data node participant
                     Thread abortThread = new Thread(new Runnable() {
                         IDataParticipant dataNode = participant.getAccess();
 
@@ -196,6 +219,8 @@ public class TwoPhaseCommit {
 
         @Override
         public void run() {
+            // issue a canCommit request to the provided participant and set the result of the request
+            // for this thread object
             try {
                 this.result = this.participant.getAccess().canCommit(t, participant);
             } catch (RemoteException | NotBoundException e) {

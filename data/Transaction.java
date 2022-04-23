@@ -65,6 +65,8 @@ public class Transaction implements Serializable {
 
     @Override
     public String toString() {
+        // print the transaction as a string with the operation, the key, and the unique message index
+        // for this transaction
         return ThreadSafeStringFormatter.format(
                 "%s %s %d",
                 this.op.toString(),
