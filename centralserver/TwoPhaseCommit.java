@@ -90,10 +90,11 @@ public class TwoPhaseCommit {
                 success = false;
             }
             Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                    "Participant at \"%s:%d\" voted \"%s\"",
+                    "Participant at \"%s:%d\" voted \"%s\" on transaction \"%s\"",
                     thread.getParticipant().getHostname(),
                     thread.getParticipant().getPort(),
-                    thread.getResult()
+                    thread.getResult(),
+                    t.toString()
             ));
         }
 

@@ -80,10 +80,7 @@ public class App {
                                 "Login attempt for username \"%s\" failed",
                                 loginUsername
                         ));
-                        System.out.println(String.format(
-                                "Login failed: %s",
-                                r.getMessage()
-                        ));
+                        System.out.println("Login failed");
                     }
                     // otherwise, log the success and print success to the screen
                     else {

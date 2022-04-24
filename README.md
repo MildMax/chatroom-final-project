@@ -79,7 +79,7 @@ Note: If starting this application on a single machine, ensure that the `<tcp po
 
 Third, our project recommends starting the data servers. To start the data servers, open one terminal for
 each server. Then, in each terminal, navigate to the directory that contains our `chatroom.jar` file.
-Then,in this directory, run the following command in each terminal:
+Then, in this directory, run the following command in each terminal:
 
 ```
 java -cp chatroom.jar dataserver.App <id> <central hostname> <register port> <hostname> <operations port> <participant port>
@@ -229,11 +229,37 @@ Each data server will be available in the same directory from which the data ser
 was launched. It will appear as `DataNode<id>.txt`, where `<id>` is the unique ID
 provided to the data server when it was launched.
 
+Additionally, each data server in the system will store its data in a folder `files_<id>`
+where `<id>` is the unique ID used to start the data server. The `users.txt`, `chatrooms.txt`,
+and `chatlogs` files and directories for each data server may be found in its
+respective `files_<id>` directory.
+
 ### Client
 
 Each client will write to the `ClientLog.txt` file available in the same directory
 from which the client was launched.
 
+## Local Testing
+
+While our application may be manually tested using the steps described above for operating the
+application on a local machine, we have also included a basic test file that shows how many
+of our operations and algorithms work. To run this test file, set the servers up as described
+in the **Starting the Application** heading, and run the following command from a client
+terminal:
+
+```
+java -cp chatroom.jar client.App <central hostname> <central port> -t
+```
+
+The `-t` flag indicates that the test file should be run, and the client will run several
+operations where it contacts the central server, and then promptly exit. The result of 
+the tests will be printed to the console as follows:
+
+![](images/testing_run.png)
+
+Additionally, logs at the central server, data nodes, and chat nodes, as well as the storage files
+and directories for each data node, will showcase how our application handles good user input,
+bad user input, 2 phase commit on creating a user, creating a chatroom, and deleting a chatroom.
 
 
 

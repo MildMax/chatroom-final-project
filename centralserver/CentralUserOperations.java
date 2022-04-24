@@ -22,6 +22,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     private final Object dataNodeParticipantsLock;
     private final ResourceCleaner cleaner;
     private final CentralCoordinator coordinator;
+    private final Object reestablishLock;
 
     // const message for existing chatrooms -- used during re-establish connection
     private static final String EXISTING_CHATROOM_MESSAGE = "A chatroom with this name already exists";
@@ -42,6 +43,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         this.dataNodeParticipantsLock = dataNodeParticipantsLock;
         this.coordinator = coordinator;
         this.cleaner = cleaner;
+        this.reestablishLock = new Object();
         
     }
 
@@ -511,30 +513,34 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 				ClientIPUtil.getClientIP()
 		));
 
-        // clean outstanding chatroom nodes since we suspect one is now not working
-        cleaner.cleanChatroomNodes();
-        // create new chatroom using existing create chatroom functionality
-        ChatroomResponse response = CentralUserOperations.innerCreateChatroom(chatroomName, this.chatroomNodeLock, this.chatroomNodes);
-        // if the create operation fails saying an existing chatroom already exists, then another user already
-		// initiated reestablishing the chatroom
-		// instead, simply grab the info for the existing chatroom
-        if (response.getStatus() == ResponseStatus.FAIL && response.getMessage().compareTo(CentralUserOperations.EXISTING_CHATROOM_MESSAGE) == 0) {
-        	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-        			"Chatroom \"%s\" has already been reestablished; getting chatroom data...",
-					chatroomName
-			));
-        	synchronized (chatroomNodeLock) {
-				return CentralUserOperations.getChatroomResponse(chatroomName, chatroomNodes);
+    	// ensure one client can reestablish at a time
+		// otherwise, innerCreateChatroom may incorrectly fail to return the EXISTING_CHATROOM_MESSAGE response
+    	synchronized (this.reestablishLock) {
+			// clean outstanding chatroom nodes since we suspect one is now not working
+			cleaner.cleanChatroomNodes();
+			// create new chatroom using existing create chatroom functionality
+			ChatroomResponse response = CentralUserOperations.innerCreateChatroom(chatroomName, this.chatroomNodeLock, this.chatroomNodes);
+			// if the create operation fails saying an existing chatroom already exists, then another user already
+			// initiated reestablishing the chatroom
+			// instead, simply grab the info for the existing chatroom
+			if (response.getStatus() == ResponseStatus.FAIL && response.getMessage().compareTo(CentralUserOperations.EXISTING_CHATROOM_MESSAGE) == 0) {
+				Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+						"Chatroom \"%s\" has already been reestablished; getting chatroom data...",
+						chatroomName
+				));
+				synchronized (chatroomNodeLock) {
+					return CentralUserOperations.getChatroomResponse(chatroomName, chatroomNodes);
+				}
 			}
-        }
-        // otherwise, indicate the reestablish operation succeeded
-        else {
-        	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-        			"Successfully reestablished chatroom \"%s\"",
-					chatroomName
-			));
-            return response;
-        }
+			// otherwise, indicate the reestablish operation succeeded
+			else {
+				Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+						"Successfully reestablished chatroom \"%s\"",
+						chatroomName
+				));
+				return response;
+			}
+		}
     }
 
     private static ChatroomResponse getChatroomResponse(String chatroomName, List<RMIAccess<IChatroomOperations>> chatroomNodes) throws RemoteException {
