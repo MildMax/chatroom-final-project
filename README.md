@@ -6,8 +6,8 @@ Joseph Burns, Daniel Levin, Hephzibah Saidu, Rodolph Mesadieu
 ## Starting the Application
 
 To start our application, the following components should be started in the order provided. Once the application
-is running, our system is resilient to any data node or chat node failure, and new chat nodes may be added
-to the system at any time.
+is running, our system is resilient to any data node or chat node failure so long as at least one of each node exists, 
+and new chat nodes may be added to the system at any time.
 
 ### Central Server
 
@@ -22,7 +22,8 @@ java -cp chatroom.jar centralserver.App <register port> <chatroom port> <user po
 - `<register port>` : the port that data and server nodes may register with the central server on
 - `<chatroom port>` : the port that the central server listens for log requests from chatroom servers
 - `<user port>` : the port that the central server listens for user requests on
-- `<coordinator port>` : the port that the central server listens for Coordinator operation requests on during 2PC
+- `<coordinator port>` : the port that the central server listens for Coordinator operation requests on from participant data servers
+ during 2PC
 
 For example, a user may start the central server using the following command:
 
@@ -150,7 +151,7 @@ create, delete, or list chatrooms.
 All usernames and chatroom names must be unique in the system. All chatroom names, usernames, and passwords
 are not allowed to contain the character `:`. If there is any error with a request by the client, the
 application will print an error message to the screen detailing what went wrong with the request. If
-a user selects an invalid prompt, the system will indicate that an invalid option has been selected,
+a user selects an invalid option for either prompt, the system will indicate that an invalid option has been selected,
 and continue to prompt the user for input.
 
 ### Log in / Create User prompt

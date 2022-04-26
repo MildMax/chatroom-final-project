@@ -93,19 +93,29 @@ Each data server in the system will store data in a folder `files_<id>` where `<
 unique ID used to start the data server. The following images are pulled from `files_A`
 and `files_B` for data nodes `A` and `B` respectively.
 
-**files_<id>**
+**files_`<id>`**
 
 ![](images/replicated_data_file_structure.png)
 
 **users.txt**
 
+Note: Our system stores user data in the format `<username>:<password>` for each user on a new line.
+
 ![](images/replicated_data_users.png)
 
 **chatroom.txt**
 
+Note: Our system stores chatroom data in the format `<chatroom name>:<username>` for each chatroom
+on a new line.
+
 ![](images/replicated_data_chatrooms.png)
 
 **chatLogs directory**
+
+Note: Our system stores chatroom messages in the `.txt` file for that chatroom with the same name as the
+chatroom. For example, for a chatroom called `new_chatroom`, the corresponding text file will be
+`new_chatroom.txt`. All messages logged appear here exactly as they appear to the clients in their
+Java Swing windows.
 
 ![](images/replicated_data_chatlogs.png)
 
