@@ -83,6 +83,46 @@ public class Chatroom {
         }
     }
 
+    /**
+     * Closes the chatroom and informs connected clients the chatroom is no longer available
+     */
+    public void closeRoom() {
+
+        CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                "Closing room \"%s\"",
+                this.roomName
+        ));
+
+        synchronized (socketMapLock) {
+            for (String user : socketMap.keySet()) {
+                try {
+                    Socket s = socketMap.get(user);
+                    // if socket is null, do no send
+                    if (s == null) {
+                        continue;
+                    }
+
+                    CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                            "Sending close instruction to user \"%s\"",
+                            user
+                    ));
+
+                    // send \c termination string to client to indicate the chatroom is closed
+                    PrintWriter out = new PrintWriter(new OutputStreamWriter(s.getOutputStream()), true);
+                    out.println("\\c");
+                    // clean up resources
+                    out.close();
+                    s.close();
+                } catch (IOException e) {
+                    CristiansLogger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                            "Unable to send close message to client \"%s\"",
+                            user
+                    ));
+                }
+            }
+        }
+    }
+
     public int getUserCount() {
         // retrieve the number of users currently subscribed to this chatroom
         // used for load balancing purposes

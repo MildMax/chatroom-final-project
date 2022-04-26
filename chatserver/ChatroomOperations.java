@@ -70,6 +70,11 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
 
         // remove the chatroom using the provided name from the room map using the provided chatroom name
         synchronized (roomMapLock) {
+            Chatroom r = roomMap.get(name);
+            if (r != null) {
+                // send message to clients that the room is closing
+                r.closeRoom();
+            }
             roomMap.remove(name);
         }
         return new Response(ResponseStatus.OK, "success");

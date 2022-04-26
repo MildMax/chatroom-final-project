@@ -30,6 +30,7 @@ class Chat extends JFrame implements ActionListener {
     private static RMIAccess<ICentralUserOperations> centralServer;
     private static final Object reestablishLock = new Object();
     private static Thread chatThread;
+    private static boolean isRunning;
 
     // default constructor
     public Chat(String username, String chatroomName, String hostname, int tcpPort, int rmiPort, RMIAccess<ICentralUserOperations> centralServer, Object chatWait){
@@ -40,6 +41,7 @@ class Chat extends JFrame implements ActionListener {
         Chat.rmiPort = rmiPort;
         Chat.centralServer = centralServer;
         Chat.chatWait = chatWait;
+        Chat.isRunning = true;
         Chat.chatThread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -235,6 +237,13 @@ class Chat extends JFrame implements ActionListener {
         // and publish to the chat server
         if (s.equals("submit")) {
 
+            // if the chatroom has been closed, inform client messages can't be sent, return without sending
+            // message
+            if (!Chat.isRunning) {
+                textDisplay.setText(textDisplay.getText() + "\nSystem >> The chatroom has been deleted; no more messages may be delivered");
+                return;
+            }
+
             // grab user text
             String message = textEntry.getText();
 
@@ -297,6 +306,14 @@ class Chat extends JFrame implements ActionListener {
                 try {
                     // receive only when information becomes available
                     while ((message = socketReader.readLine()) != null) {
+
+                        if (message.compareTo("\\c") == 0) {
+                            textDisplay.setText(textDisplay.getText() + "\nSystem >> The chatroom has been deleted; no more messages may be delivered");
+                            Chat.isRunning = false;
+                            socketReader.close();
+                            receiveSocket.close();
+                            return;
+                        }
 
                         Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
                                 "Received message \"%s\" from chat server at \"%s:%d\"",
