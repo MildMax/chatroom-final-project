@@ -10,14 +10,14 @@ import java.util.Date;
 /**
  * Manages writing events to server logs
  */
-public class Logger {
+public abstract class Logger {
 
     private static BufferedWriter logWriter;
 
     /**
      * Initializes the ServerLogger
      */
-    public static void serverLoggerSetup(String id) {
+    public static void loggerSetup(String id) {
         File logFile = new File(String.format("./%sLog.txt", id));
         // check if the logfile already exists; if not, create one
         if (!logFile.exists()) {
@@ -31,7 +31,7 @@ public class Logger {
             Logger.logWriter = new BufferedWriter(new FileWriter(logFile, true));
         } catch (IOException e) {
             // if error generating log write stream, print error to stdout
-            System.out.println(String.format("There was an error initializing Server log file: %s", e.getMessage()));
+            System.out.println(String.format("There was an error initializing log file: %s", e.getMessage()));
         }
     }
 
@@ -47,10 +47,10 @@ public class Logger {
             Logger.logWriter.flush();
         } catch (IOException e) {
             // if error writing to log, print error to stdout
-            System.out.println(ThreadSafeStringFormatter.format("There was an error writing to the Server log: %s", e.getMessage()));
+            System.out.println(ThreadSafeStringFormatter.format("There was an error writing to the log: %s", e.getMessage()));
         } catch (NullPointerException e) {
             System.out.println(ThreadSafeStringFormatter.format(
-                    "ERROR ServerLogger class was not initialized: attempting to write: %s",
+                    "ERROR Logger class was not initialized: attempting to write: %s",
                     log
             ));
         }
@@ -70,7 +70,7 @@ public class Logger {
      *
      * @return current time with millisecond precision
      */
-    private static String getFormattedTimeInMilli() {
+    protected static String getFormattedTimeInMilli() {
         long milliTime = System.currentTimeMillis();
         Date date = new Date(milliTime);
         // create expression to define format of current time with millisecond precision
@@ -78,4 +78,5 @@ public class Logger {
         // format and return date
         return sdf.format(date);
     }
+
 }

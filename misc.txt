@@ -1,0 +1,7 @@
+## Compiling the code
+
+```
+javac -cp . centralserver/*.java chatserver/*.java client/*.java data/*.java dataserver/*.java util/*.java
+```
+
+jar cf chatroom.jar .

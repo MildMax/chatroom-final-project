@@ -12,6 +12,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Provides entry point and initialization of the Central Server application
+ */
 public class App {
 
     private final List<RMIAccess<IChatroomOperations>> chatroomNodes;
@@ -21,6 +24,9 @@ public class App {
     private final List<RMIAccess<IDataParticipant>> dataNodesParticipants;
     private final Object dataNodeParticipantsLock;
 
+    /**
+     * Creates an instance of the Central Server Application
+     */
     public App() {
         this.chatroomNodeLock = new Object();
         this.dataNodeOperationsLock = new Object();
@@ -30,6 +36,12 @@ public class App {
         this.dataNodesParticipants = Collections.synchronizedList(new ArrayList<>());
     }
 
+    /**
+     * Starts the Central Server application
+     *
+     * @param serverInfo information required to run the Central Server
+     * @throws RemoteException if there is an error generating RMI interfaces
+     */
     public void go(ServerInfo serverInfo) throws RemoteException {
         // start registry for Register function
         Registry centralOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getRegisterPort());
@@ -54,16 +66,19 @@ public class App {
         Thread cleanerThread = new Thread(cleaner);
         cleanerThread.start();
 
+        Logger.writeMessageToLog("Setting up central coordinator interface...");
         // start registry for Data -> Central Coordinator operations
         Registry centralCoordinatorRegistry = LocateRegistry.createRegistry(serverInfo.getCoordinatorPort());
         CentralCoordinator coordinatorEngine = new CentralCoordinator();
         centralCoordinatorRegistry.rebind("ICentralCoordinator", coordinatorEngine);
 
+        Logger.writeMessageToLog("Setting up chatroom operations interface...");
         // start registry for Chatroom -> Central Server communication
         Registry centralChatroomOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getChatroomPort());
         ICentralChatroomOperations centralChatroomOperationsEngine = new CentralChatroomOperations(this.dataNodesParticipants, this.dataNodeParticipantsLock, coordinatorEngine);
         centralChatroomOperationsRegistry.rebind("ICentralChatroomOperations", centralChatroomOperationsEngine);
-        
+
+        Logger.writeMessageToLog("Setting up user operations interface...");
         // start registry for Client -> Central Server communication
         Registry centralUserOperationsRegistry = LocateRegistry.createRegistry(serverInfo.getUserPort());
         ICentralUserOperations centralUserOperationsEngine = new CentralUserOperations(
@@ -80,9 +95,17 @@ public class App {
         System.out.println("Central Server is ready");
     }
 
+    /**
+     * The entry point for the Central Server application
+     *
+     * @param args
+     */
     public static void main(String[] args) {
 
-        Logger.serverLoggerSetup("CentralServer");
+        // initialize the logger for the central server
+        Logger.loggerSetup("CentralServer");
+
+        // parse command line arguments
         ServerInfo serverInfo = null;
         try {
             serverInfo = App.parseCommandLineArguments(args);
@@ -91,6 +114,7 @@ public class App {
             return;
         }
 
+        // start the application
         App app = new App();
         try {
             app.go(serverInfo);
@@ -104,12 +128,15 @@ public class App {
 
     public static ServerInfo parseCommandLineArguments(String[] args) throws IllegalArgumentException {
 
+        // if length of arguments is less than 4, throw error
         if (args.length != 4) {
             throw new IllegalArgumentException(ThreadSafeStringFormatter.format(
                     "Expected 4 arguments <register port> <chatroom port> <user port> <coordinator port>, received \"%d\" arguments",
                     args.length
             ));
         }
+
+        // parse port data for the central server
 
         int registerPort;
         try {

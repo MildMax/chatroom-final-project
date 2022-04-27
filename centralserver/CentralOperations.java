@@ -1,10 +1,7 @@
 package centralserver;
 
 import data.*;
-import util.ClientIPUtil;
-import util.Logger;
-import util.RMIAccess;
-import util.ThreadSafeStringFormatter;
+import util.*;
 
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
@@ -37,7 +34,7 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
     }
 
     @Override
-    public RegisterResponse registerDataNode(String hostname, int dataOperationsPort, int dataParticipantPort) throws RemoteException {
+    public RegisterResponse registerDataNode(String hostname, int dataOperationsPort, int dataParticipantPort, List<String> chatrooms) throws RemoteException {
 
         Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
                 "Registering data node at \"%s\" with operations port \"%d\" and participant port \"%d\"",
@@ -46,14 +43,36 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
                 dataParticipantPort
         ));
 
+        // track the operations RMI interface for the data node
         synchronized (dataNodeOperationsLock) {
             dataNodesOperations.add(new RMIAccess<>(hostname, dataOperationsPort, "IDataOperations"));
         }
 
+        // track the participants RMI interface for the data node
         synchronized (dataNodeParticipantsLock) {
             dataNodesParticipants.add(new RMIAccess<>(hostname, dataParticipantPort, "IDataParticipant"));
         }
 
+        // use list of existing chatrooms tracked by data node to spin up chatrooms at available chat servers
+        for (String room : chatrooms) {
+            Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+                    "Spinning up existing chatroom \"%s\" from data server...",
+                    room
+            ));
+            // create the chatroom
+            ChatroomResponse r = CentralUserOperations.innerCreateChatroom(room, this.chatroomNodeLock, this.chatroomNodes);
+            // if chatroom cannot be spun up, log error (may be case that the charoom has already been spun up
+            // from another data node
+            if (r.getStatus() == ResponseStatus.FAIL) {
+                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+                        "Unable to spin up chatroom \"%s\": \"%s\"",
+                        room,
+                        r.getMessage()
+                ));
+            }
+        }
+
+        // return response telling data node where it can contact the central servers coordinator RMI interface
         return new RegisterResponse(serverInfo.getCoordinatorPort());
     }
 
@@ -66,10 +85,12 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
                 port
         ));
 
+        // track chatroom operations RMI interface for the chat server
         synchronized (chatroomNodeLock) {
             chatroomNodes.add(new RMIAccess<>(hostname, port, "IChatroomOperations"));
         }
 
+        // return response telling the chat server node where it can forward chat messages to be logged
         return new RegisterResponse(serverInfo.getChatroomPort());
     }
 

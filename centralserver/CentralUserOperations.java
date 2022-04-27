@@ -21,8 +21,9 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     private final List<RMIAccess<IDataParticipant>> dataNodesParticipants;
     private final Object dataNodeParticipantsLock;
     private final ResourceCleaner cleaner;
-
     private final CentralCoordinator coordinator;
+    private final Object reestablishLock;
+
     // const message for existing chatrooms -- used during re-establish connection
     private static final String EXISTING_CHATROOM_MESSAGE = "A chatroom with this name already exists";
 
@@ -42,6 +43,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         this.dataNodeParticipantsLock = dataNodeParticipantsLock;
         this.coordinator = coordinator;
         this.cleaner = cleaner;
+        this.reestablishLock = new Object();
         
     }
 
@@ -57,7 +59,17 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         boolean success = false;
         String errorMessage = "";
         boolean userExists = false;
+
+        // iterate through registered data nodes to determine if the provided username exists in the system
         synchronized (dataNodeOperationsLock) {
+        	if (this.dataNodesOperations.size() == 0) {
+				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+						"There are currently no data nodes registered with the central server; unable to register user \"%s\"",
+						username
+				));
+				return new Response(ResponseStatus.FAIL, "Unable to register user");
+			}
+
         	for (RMIAccess<IDataOperations> node : this.dataNodesOperations) {
 				try {
 					userExists = node.getAccess().userExists(username);
@@ -76,11 +88,13 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         if (username.contains(":") || password.contains(":")) {
     		errorMessage = "You cannot have a username or password that contains \":\"";
     		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                    "Tried to create a username or password with \":\" %s, %s ",
+                    "User ried to create a username or password with \":\" %s, %s ",
                     username, password
             ));
     		return new Response(ResponseStatus.FAIL, errorMessage);
-    	} else if (userExists) {
+    	}
+        // if the username already exists, indicate to the client that they cannot create a duplicate username
+        else if (userExists) {
     		errorMessage = "User already exists";
     		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
                     errorMessage,
@@ -88,7 +102,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
             ));
     		return new Response(ResponseStatus.FAIL, errorMessage);
     	}
-        
+        // otherwise, attempt to create a new username and password for the user
         else {
 			Transaction t = new Transaction(Operations.CREATEUSER, username, password);
 			TwoPhaseCommit committer = new TwoPhaseCommit();
@@ -119,6 +133,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         ));
 
         synchronized (dataNodeOperationsLock) {
+        	// if there are no data nodes currently registered, cannot
             if (this.dataNodesOperations.size() == 0) {
                 Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
                         "There are currently no data nodes registered with the central server; unable to perform login for user \"%s\"",
@@ -155,7 +170,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                 return new Response(ResponseStatus.OK, "success");
             } else {
                 Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-                        "Unable to log in user \"%s\" with message: \"%s\"",
+                        "Unable to log in user \"%s\": \"%s\"",
                         username,
                         response.getMessage()
                 ));
@@ -186,9 +201,10 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                     ));
                     continue;
                 }
-                for (String name : chatroomListResponse.getChatroomNames()) {
-                    chatroomList.add(name);
-                }
+
+                if (chatroomListResponse != null) {
+					chatroomList.addAll(chatroomListResponse.getChatroomNames());
+				}
             }
         }
         return new ChatroomListResponse(chatroomList);
@@ -196,8 +212,6 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 
     @Override
     public ChatroomResponse createChatroom(String chatroomName, String username) throws RemoteException {
-    	// do 2pc here    if it fails, return response with fail and message ??check length of chatroom nodes list??
-    	// can commit? if yes then then get ready to return innercreatechatroom then do commit,
 
 		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
 				"Received create chatroom request for chatroom \"%s\" from user \"%s\" at \"%s\"",
@@ -219,19 +233,24 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         if (chatroomName.contains(":")) {
     		errorMessage = "You cannot have a chatroom name that contains \":\"";
     		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                    "Tried to create a chatroom with \":\" %s ",
+                    "Tried to create a chatroom with \":\": %s",
                     chatroomName
             ));
     		return new ChatroomResponse(ResponseStatus.FAIL, errorMessage);
     	} else if (chatroomExists) {
-    		errorMessage = "Chatroom already exists";
-    		Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                    errorMessage,
-                    chatroomName
-            ));
+        	// if chatroom exists log error and return message indicating room already exists to client
+    		errorMessage = ThreadSafeStringFormatter.format(
+    				"Chatroom \"%s\" already exists",
+					chatroomName
+			);
+    		Logger.writeErrorToLog(
+                    errorMessage
+            );
     		return new ChatroomResponse(ResponseStatus.FAIL, errorMessage);
     	} else {
 
+        	// if chatroom does not exist and the chat name is valid, do 2pc to commit information for
+			// new client
     		Transaction t = new Transaction(Operations.CREATECHATROOM, chatroomName, username);
 			coordinator.setCoordinatorDecision(t, Ack.NA);
 
@@ -302,9 +321,14 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 	}
 
 	private boolean isUserVerified(String username, String password) {
+    	// iterate through data nodes until the application can verify that the user exists
+		// and that they have provided the correct password
 		for (RMIAccess<IDataOperations> nodeAccessor : this.dataNodesOperations) {
 			try {
 				Response response = nodeAccessor.getAccess().verifyUser(username, password);
+				// if verified at any node, return true to signal user and password combination
+				// is valid
+				// provides replication/location transparency
 				if (response.getStatus() == ResponseStatus.OK) {
 					return true;
 				}
@@ -320,9 +344,12 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 	}
 
 	private boolean isUserOwner(String chatroomName, String username) {
+    	// iterate through list of data nodes to verify that a particular user
+		// is the original creator of the chatroom
 		for (RMIAccess<IDataOperations> nodeAccessor : this.dataNodesOperations) {
 			try {
 				Response response = nodeAccessor.getAccess().verifyOwnership(chatroomName, username);
+				// if user can be verified to own the chatroom, return true
 				if (response.getStatus() == ResponseStatus.OK) {
 					return true;
 				}
@@ -356,6 +383,8 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 			boolean userVerified = false;
 			boolean userOwns = false;
 
+			// if the chatroom does not exist, then there is nothing to delete
+			// log error and return message to client without doing any remove operation
 			chatroomExists = isChatroomExists(chatroomName);
 
 			if (!chatroomExists) {
@@ -367,8 +396,11 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 				return new Response(ResponseStatus.FAIL, errorMessage);
 			}
 
+			// verify that the user attempting to delete the chatroom is registered with our
+			// application
 			userVerified = isUserVerified(username, password);
 
+			// if the user is not verified, log error and send message back to client
 			if (!userVerified) {
 				errorMessage = "Unable to verify user";
 				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
@@ -379,10 +411,18 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 				return new Response(ResponseStatus.FAIL, errorMessage);
 			}
 
+			// verify that the user attempting to delete the chatroom is the owner of
+			// the chatroom
 			userOwns = isUserOwner(chatroomName, username);
 
+			// if the user is not the owner, log that another user attempted to delete a chatroom
+			// they do not own, and send a fail message back to the client
 			if (!userOwns) {
-				errorMessage = "User does not own this chatroom";
+				errorMessage = ThreadSafeStringFormatter.format(
+						"User \"%s\" is unauthorized to delete chatroom \"%s\"",
+						username,
+						chatroomName
+				);
 				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
 						"User \"%s\" attempted to delete chatroom \"%s\" that they do not own",
 						username,
@@ -392,6 +432,8 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 			}
 		}
 
+		// otherwise, commit the delete operation with 2PC to clean up resources
+		// at the data nodes and chat server nodes
 		Transaction t = new Transaction(Operations.DELETECHATROOM, chatroomName, username);
 		coordinator.setCoordinatorDecision(t, Ack.NA);
 		TwoPhaseCommit committer = new TwoPhaseCommit();
@@ -399,10 +441,11 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 		boolean success = committer.canCommit(t, this.dataNodesParticipants, this.dataNodeParticipantsLock);
 
 		if (success) {
-			// Roll the inner create chatroom THEN doCommit
+			// determine whether the actual resource can be deleted
 			response = innerDeleteChatroom(chatroomName);
 
-			// If we can't advance,
+			// If we can't delete the chatroom, indicate the operation failed and force abort even if
+			// all participants are able to commit
 			if (response.getStatus() == ResponseStatus.FAIL) {
 				Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
 						"Unable to delete resources for transaction \"%s\", forcing abort",
@@ -414,6 +457,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 				return response;
 			}
 
+			// otherwise, resource has been deleted, issue doCommit to available data server nodes
 			coordinator.setCoordinatorDecision(t, Ack.YES);
 
 			committer.doCommit(t, this.dataNodesParticipants, this.dataNodeParticipantsLock, this.coordinator);
@@ -428,6 +472,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 			// Everything went well, return the response.
 			return response;
 		} else {
+			// otherwise, if a NO ack is received, indicate abort to all data node participants
 			coordinator.setCoordinatorDecision(t, Ack.NO);
 			committer.doAbort(t, dataNodesParticipants, dataNodeParticipantsLock);
 			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
@@ -450,7 +495,8 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 				chatroomName,
 				ClientIPUtil.getClientIP()
 		));
-
+		// return information regarding address and ports for chatserver that contains the chatroom name provided
+		// if chatroom does not exist , returns a fail message
         synchronized (chatroomNodeLock) {
             return getChatroomResponse(chatroomName, chatroomNodes);
         }
@@ -467,19 +513,38 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 				ClientIPUtil.getClientIP()
 		));
 
-        // clean outstanding chatroom nodes since we suspect one is now not working
-        cleaner.cleanChatroomNodes();
-        // create new chatroom using existing create chatroom functionality
-        ChatroomResponse response = CentralUserOperations.innerCreateChatroom(chatroomName, this.chatroomNodeLock, this.chatroomNodes);
-        if (response.getStatus() == ResponseStatus.FAIL && response.getMessage().compareTo(CentralUserOperations.EXISTING_CHATROOM_MESSAGE) == 0) {
-        	Logger.writeMessageToLog("Chatroom has already been reestablished; getting chatroom data...");
-            return CentralUserOperations.getChatroomResponse(chatroomName, chatroomNodes);
-        } else {
-            return response;
-        }
+    	// ensure one client can reestablish at a time
+		// otherwise, innerCreateChatroom may incorrectly fail to return the EXISTING_CHATROOM_MESSAGE response
+    	synchronized (this.reestablishLock) {
+			// clean outstanding chatroom nodes since we suspect one is now not working
+			cleaner.cleanChatroomNodes();
+			// create new chatroom using existing create chatroom functionality
+			ChatroomResponse response = CentralUserOperations.innerCreateChatroom(chatroomName, this.chatroomNodeLock, this.chatroomNodes);
+			// if the create operation fails saying an existing chatroom already exists, then another user already
+			// initiated reestablishing the chatroom
+			// instead, simply grab the info for the existing chatroom
+			if (response.getStatus() == ResponseStatus.FAIL && response.getMessage().compareTo(CentralUserOperations.EXISTING_CHATROOM_MESSAGE) == 0) {
+				Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+						"Chatroom \"%s\" has already been reestablished; getting chatroom data...",
+						chatroomName
+				));
+				synchronized (chatroomNodeLock) {
+					return CentralUserOperations.getChatroomResponse(chatroomName, chatroomNodes);
+				}
+			}
+			// otherwise, indicate the reestablish operation succeeded
+			else {
+				Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+						"Successfully reestablished chatroom \"%s\"",
+						chatroomName
+				));
+				return response;
+			}
+		}
     }
 
     private static ChatroomResponse getChatroomResponse(String chatroomName, List<RMIAccess<IChatroomOperations>> chatroomNodes) throws RemoteException {
+    	// find the RMI accessor supporting the provided chatroom from the available chatroom nodes in the system
         RMIAccess<IChatroomOperations> accessor = findChatroom(chatroomName, chatroomNodes);
 
         if (accessor == null) {
@@ -490,6 +555,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
             return new ChatroomResponse(ResponseStatus.FAIL, "Unable to locate chatroom");
         }
 
+        // if there is an error getting the data for the chat server, respond with FAIL
         ChatroomDataResponse dataResponse = null;
         try {
             dataResponse = accessor.getAccess().getChatroomData();
@@ -502,12 +568,16 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
             return new ChatroomResponse(ResponseStatus.FAIL, "Unable to get chatroom data");
         }
 
+        // otherwise, respond to the user with the address and TCP and RMI ports used to connect with the
+		// chat server hosting the chatroom
         return new ChatroomResponse(ResponseStatus.OK, "success", chatroomName, dataResponse.getHostname(), dataResponse.getTcpPort(), dataResponse.getRmiPort());
     }
 
     private synchronized static RMIAccess<IChatroomOperations> findChatroom(String chatroomName, List<RMIAccess<IChatroomOperations>> chatroomNodes) throws RemoteException {
+    	// iterate through a list of available chat nodes to find the chatroom dynamically
         RMIAccess<IChatroomOperations> accessor = null;
         for (RMIAccess<IChatroomOperations> chatroomAccess : chatroomNodes) {
+        	// get a list of chatrooms from the chatroom server
             ChatroomListResponse listResponse = null;
             try {
                 listResponse = chatroomAccess.getAccess().getChatrooms();
@@ -520,124 +590,161 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
                 continue;
             }
 
+            // iterate through the list of chatroom names, and if the provided name matches the name of a chatroom
+			// on the server, collect the RMI accessor for the server hosting the chatroom and break out of the look
             for (String name : listResponse.getChatroomNames()) {
                 if (name.compareTo(chatroomName) == 0) {
                     accessor = chatroomAccess;
                     break;
                 }
             }
+
+            // if accessor is not null, it has been set after finding the appropriate chatroom,
+			// break out of the loop
+            if (accessor != null) {
+            	break;
+			}
         }
+        // return the RMI accessor that has access to the provided chatroom
         return accessor;
     }
 
-    private synchronized static ChatroomResponse innerCreateChatroom(String chatroomName,
+    public static ChatroomResponse innerCreateChatroom(String chatroomName,
                                                         Object chatroomNodeLock,
                                                         List<RMIAccess<IChatroomOperations>> chatroomNodes) throws RemoteException {
+    	// iterate through a list of chatroom nodes to determine if an instance of the chatroom
+		// exists at a chat server node in the system
         boolean chatroomExists = false;
         synchronized (chatroomNodeLock) {
-            for (RMIAccess<IChatroomOperations> chatroomAccess : chatroomNodes) {
-                ChatroomListResponse chatroomListResponse = null;
-                try {
-                    chatroomListResponse = chatroomAccess.getAccess().getChatrooms();
-                } catch (NotBoundException e) {
-                    Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                            "Unable to contact Chat server at \"%s:%d\"; skipping",
-                            chatroomAccess.getHostname(),
-                            chatroomAccess.getPort()
-                    ));
-                    continue;
-                }
+			for (RMIAccess<IChatroomOperations> chatroomAccess : chatroomNodes) {
 
-                for (String name : chatroomListResponse.getChatroomNames()) {
-                    if (name.compareTo(chatroomName) == 0) {
-                        chatroomExists = true;
-                        break;
-                    }
-                }
-                if (chatroomExists) {
-                    break;
-                }
-            }
+				// get a list of names of chatrooms that exist at the server
+				ChatroomListResponse chatroomListResponse = null;
+				try {
+					chatroomListResponse = chatroomAccess.getAccess().getChatrooms();
+				} catch (NotBoundException e) {
+					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+							"Unable to contact Chat server at \"%s:%d\"; skipping",
+							chatroomAccess.getHostname(),
+							chatroomAccess.getPort()
+					));
+					continue;
+				}
 
+				// if the chat server contains a server with the same name, then  the chatroom exists
+				// mark as such and break out of loop
+				for (String name : chatroomListResponse.getChatroomNames()) {
+					if (name.compareTo(chatroomName) == 0) {
+						chatroomExists = true;
+						break;
+					}
+				}
+				// if chatroom has been found already, no need to continue iterating, break out
+				// of loop
+				if (chatroomExists) {
+					break;
+				}
+			}
+		}
 
-            if (chatroomExists) {
-                return new ChatroomResponse(ResponseStatus.FAIL, CentralUserOperations.EXISTING_CHATROOM_MESSAGE);
-            }
+		// if chatroom exists, respond with a FAIL message and use the constant existing chatroom
+		// message (used in reestablish chatroom when a user has already reestablished prior to another user)
+		if (chatroomExists) {
+			return new ChatroomResponse(ResponseStatus.FAIL, CentralUserOperations.EXISTING_CHATROOM_MESSAGE);
+		}
 
-            ChatroomDataResponse min = null;
-            RMIAccess<IChatroomOperations> minAccess = null;
-            for (RMIAccess<IChatroomOperations> chatroomAccess : chatroomNodes) {
-                ChatroomDataResponse chatroomDataResponse = null;
-                try {
-                    chatroomDataResponse = chatroomAccess.getAccess().getChatroomData();
-                } catch (NotBoundException e) {
-                    Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                            "Unable to contact Chat server at \"%s:%d\"; skipping",
-                            chatroomAccess.getHostname(),
-                            chatroomAccess.getPort()
-                    ));
-                    continue;
-                }
+		ChatroomDataResponse min = null;
+		RMIAccess<IChatroomOperations> minAccess = null;
 
-                if (min == null) {
-                    min = chatroomDataResponse;
-                    minAccess = chatroomAccess;
-                } else {
-                    // if the current min has more users than the new chatroom node, set min to the new chatroom node
-                    if (min.getUsers() > chatroomDataResponse.getUsers()) {
-                        min = chatroomDataResponse;
-                        minAccess = chatroomAccess;
-                    }
-                    // if the current min has the same number of users than the new chatroom node,
-                    // and the current min has more chatrooms than the new chatroom node,
-                    // set the new chatroom node to be the min
-                    else if (min.getUsers() == chatroomDataResponse.getUsers() && min.getChatrooms() > chatroomDataResponse.getChatrooms()) {
-                        min = chatroomDataResponse;
-                        minAccess = chatroomAccess;
-                    }
-                }
-            }
+		// determine the chatroom with the least amount of load
+		synchronized (chatroomNodeLock) {
+			// iterate through all chatrooms to collect their user count and room count
+			for (RMIAccess<IChatroomOperations> chatroomAccess : chatroomNodes) {
+				ChatroomDataResponse chatroomDataResponse = null;
+				try {
+					chatroomDataResponse = chatroomAccess.getAccess().getChatroomData();
+				} catch (NotBoundException e) {
+					Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+							"Unable to contact Chat server at \"%s:%d\"; skipping",
+							chatroomAccess.getHostname(),
+							chatroomAccess.getPort()
+					));
+					continue;
+				}
 
-            if (min == null || minAccess == null) {
-                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                        "Unable to determine Chat server with the least load; unable to create chatroom \"%s\"",
-                        chatroomName
-                ));
-                return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
-            }
+				// if min is null, then no chatroom has yet been evauluated, set the first chatroom
+				// as the min by which other nodes are compared
+				if (min == null) {
+					min = chatroomDataResponse;
+					minAccess = chatroomAccess;
+				} else {
+					// if the current min has more users than the new chatroom node, set min to the new chatroom node
+					if (min.getUsers() > chatroomDataResponse.getUsers()) {
+						min = chatroomDataResponse;
+						minAccess = chatroomAccess;
+					}
+					// if the current min has the same number of users than the new chatroom node,
+					// and the current min has more chatrooms than the new chatroom node,
+					// set the new chatroom node to be the min
+					else if (min.getUsers() == chatroomDataResponse.getUsers() && min.getChatrooms() > chatroomDataResponse.getChatrooms()) {
+						min = chatroomDataResponse;
+						minAccess = chatroomAccess;
+					}
+				}
+			}
+		}
 
-            Response response = null;
-            try {
-                response = minAccess.getAccess().createChatroom(chatroomName);
-            } catch (NotBoundException e) {
-                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                        "Unable to contact Chat server at \"%s:%d\"; cannot create chatroom \"%s\"",
-                        minAccess.getHostname(),
-                        minAccess.getPort(),
-                        chatroomName
-                ));
-                return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
-            }
+		// if min cannot be determined, there are no servers available, log the error and
+		// send an error message to the client
+		if (min == null || minAccess == null) {
+			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					"Unable to determine Chat server with the least load; unable to create chatroom \"%s\"",
+					chatroomName
+			));
+			return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
+		}
 
-            if (response.getStatus() == ResponseStatus.FAIL) {
-                Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                        "Unable to create chatroom \"%s\" at Chat server at \"%s:%d\"",
-                        chatroomName,
-                        minAccess.getHostname(),
-                        minAccess.getPort()
-                ));
-                return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
-            }
+		//once min has been found, create a new chatroom with the given name at that chat server node
+		Response response = null;
+		try {
+			response = minAccess.getAccess().createChatroom(chatroomName);
+		} catch (NotBoundException e) {
+			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					"Unable to contact Chat server at \"%s:%d\"; cannot create chatroom \"%s\"",
+					minAccess.getHostname(),
+					minAccess.getPort(),
+					chatroomName
+			));
+			return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
+		}
 
-            return new ChatroomResponse(ResponseStatus.OK, "success", chatroomName, min.getHostname(), min.getTcpPort(), min.getRmiPort());
-        }
+		// if the create command returns with a FAIL message, log failure and send message
+		// to the client indicating chatroom cannot be created
+		if (response.getStatus() == ResponseStatus.FAIL) {
+			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
+					"Unable to create chatroom \"%s\" at Chat server at \"%s:%d\"",
+					chatroomName,
+					minAccess.getHostname(),
+					minAccess.getPort()
+			));
+			return new ChatroomResponse(ResponseStatus.FAIL, "Unable to create chatroom");
+		}
+
+		// otherwise, log that the create operation succeeded and return information about the server
+		// hosting the chatroom
+		// can be used by the client to connect to the new  chatroom
+		return new ChatroomResponse(ResponseStatus.OK, "success", chatroomName, min.getHostname(), min.getTcpPort(), min.getRmiPort());
+
     }
 
-    public Response innerDeleteChatroom(String chatroomName) throws RemoteException {
+    private Response innerDeleteChatroom(String chatroomName) throws RemoteException {
     	synchronized (chatroomNodeLock) {
-        	// Make sure that user has chatroom ownership
+        	// find the chat server hosting the chatroom to be deleted
             RMIAccess<IChatroomOperations> accessor = CentralUserOperations.findChatroom(chatroomName, chatroomNodes);
 
+            // if accessor is null, unable to determine which node contains the chatroom
+			// indicate resource cannot be found and thus cant be deleted, and respond
+			// with appropriate fail message
             if (accessor == null) {
             	Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
 						"Unable to find chatroom node with chatroom \"%s\"",
@@ -646,6 +753,7 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
             	return new Response(ResponseStatus.FAIL, "Chatroom does not exist");
 			}
 
+            // attempt to delete the chatroom from the node that hosts the chatroom
             try {
                 accessor.getAccess().deleteChatroom(chatroomName);
             } catch (NotBoundException e) {

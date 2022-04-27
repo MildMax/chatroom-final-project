@@ -66,7 +66,9 @@ public class ResourceCleaner implements Runnable {
             for (RMIAccess<IChatroomOperations> chatNode : chatroomNodes) {
                 try {
                     chatNode.getAccess();
-                } catch (NotBoundException | RemoteException e) {
+                }
+                // if chat node cannot be accessed, assume it is down and track the node for deletion
+                catch (NotBoundException | RemoteException e) {
                     Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
                             "Unable to contact chat server node at \"%s:%d\"; removing from list of active chat server nodes",
                             chatNode.getHostname(),
@@ -76,6 +78,8 @@ public class ResourceCleaner implements Runnable {
                     downedChatServers.add(chatNode);
                 }
             }
+
+            // remove dead nodes from the list of registered chat nodes at the central server
             for (RMIAccess<IChatroomOperations> chatNode : downedChatServers) {
                 chatroomNodes.remove(chatNode);
             }
@@ -91,7 +95,9 @@ public class ResourceCleaner implements Runnable {
             for (RMIAccess<IDataOperations> dataNode : dataNodesOperations) {
                 try {
                     dataNode.getAccess();
-                } catch (NotBoundException | RemoteException e) {
+                }
+                // if data node cannot be accessed, assume it is down and track the node for deletion
+                catch (NotBoundException | RemoteException e) {
                     Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
                             "Unable to contact data server node at \"%s:%d\"; removing from list of active data server nodes",
                             dataNode.getHostname(),
@@ -101,6 +107,8 @@ public class ResourceCleaner implements Runnable {
                     downedNodeServers.add(dataNode);
                 }
             }
+
+            // remove dead nodes from the list of registered data nodes at the central server
             for (RMIAccess<IDataOperations> dataNode : downedNodeServers) {
                 dataNodesOperations.remove(dataNode);
             }
@@ -112,7 +120,9 @@ public class ResourceCleaner implements Runnable {
             for (RMIAccess<IDataParticipant> dataNode : dataNodesParticipants) {
                 try {
                     dataNode.getAccess();
-                } catch (NotBoundException | RemoteException e) {
+                }
+                // if data node cannot be accessed, assume it is down and track the node for deletion
+                catch (NotBoundException | RemoteException e) {
                     Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
                             "Unable to contact data server node at \"%s:%d\"; removing from list of active data server nodes",
                             dataNode.getHostname(),
@@ -122,6 +132,8 @@ public class ResourceCleaner implements Runnable {
                     downedNodeServers.add(dataNode);
                 }
             }
+
+            // remove dead nodes from the list of registered data nodes at the central server
             for (RMIAccess<IDataParticipant> dataNode : downedNodeServers) {
                 dataNodesParticipants.remove(dataNode);
             }

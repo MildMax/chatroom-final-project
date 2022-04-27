@@ -4,6 +4,7 @@ import data.Ack;
 import data.ICentralCoordinator;
 import data.IDataParticipant;
 import data.Transaction;
+import util.ClientIPUtil;
 import util.ThreadSafeStringFormatter;
 import util.Logger;
 import util.RMIAccess;
@@ -13,17 +14,16 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class CentralCoordinator extends UnicastRemoteObject implements ICentralCoordinator {
 	
-	private Map<Integer, Integer> commitMap;
-	private Map<Integer, Object> objectMap;
-	private Map<Integer, Ack> transactionDecisions;
+	private final Map<Integer, Integer> commitMap;
+	private final Map<Integer, Object> objectMap;
+	private final Map<Integer, Ack> transactionDecisions;
     
 	public CentralCoordinator() throws RemoteException {
-    	commitMap = new ConcurrentHashMap<Integer, Integer>();
-    	objectMap = new ConcurrentHashMap<Integer, Object>();
+    	commitMap = Collections.synchronizedMap(new HashMap<>());
+    	objectMap = Collections.synchronizedMap(new HashMap<>());
     	transactionDecisions = Collections.synchronizedMap(new HashMap<>());
     }
 
@@ -34,6 +34,13 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
      * @param coordinatorDecision the decision of the coordinator for the transaction (YES for doCommit, NO for doAbort, NA for no decision)
      */
     public void setCoordinatorDecision(Transaction t, Ack coordinatorDecision) {
+    	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+    			"Setting coordinator decision \"%s\" for transaction \"%s\"",
+				coordinatorDecision,
+				t.toString()
+		));
+
+    	// track decision on transaction using unique transaction index
         transactionDecisions.put(t.getTransactionIndex(), coordinatorDecision);
     }
 
@@ -43,42 +50,61 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
      * @param t transaction that Coordinator has previously made a decision on
      */
     public void removeCoordinatorDecision(Transaction t) {
-        transactionDecisions.remove(t.getTransactionIndex());
+		Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+				"Removing coordinator decision for transaction \"%s\"",
+				t.toString()
+		));
+    	transactionDecisions.remove(t.getTransactionIndex());
     }
 	
 	
     @Override
     public void haveCommitted(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException {
+
+    	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+    			"Received haveCommitted request on transaction \"%s\" from participant at \"%s:%d\"",
+				t.toString(),
+				p.getHostname(),
+				p.getPort()
+		));
+
     	int count;
-    	Object waitObject;
-		try {
-			int transactionId = t.getTransactionIndex();
-			waitObject = objectMap.get(transactionId);
-			synchronized(waitObject) {
-				count = commitMap.get(transactionId);
-				count--;
-				
-				if (count == 0) {	
+
+		int transactionId = t.getTransactionIndex();
+		count = commitMap.get(transactionId);
+		count--;
+
+		// if the count is 0, then all participants have committed
+		if (count == 0) {
+			commitMap.remove(transactionId);
+
+			// notify the wait object in the doCommit thread to complete transaction
+			Object waitObject = objectMap.get(transactionId);
+			if (waitObject != null) {
+				synchronized (waitObject) {
 					waitObject.notify();
-					commitMap.remove(transactionId);
-					objectMap.remove(transactionId);
-					Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
-	                        "All participants have committed on transaction \"%s\"",
-	                        t.toString()
-	                ));
-				} else {
-					commitMap.put(transactionId, count);
 				}
 			}
-		} catch (NullPointerException e) {
-			Logger.writeErrorToLog(ThreadSafeStringFormatter.format(
-                    "A key was not found, addWaitCommit wasnt called"
-					));
+			objectMap.remove(transactionId);
+
+			Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+					"All participants have committed on transaction \"%s\"",
+					t.toString()
+			));
+		}
+		// otherwise, replace count to indicate another participant has committed
+		else {
+			commitMap.put(transactionId, count);
 		}
     }
 
     @Override
     public Ack getDecision(Transaction t) throws RemoteException {
+    	Logger.writeMessageToLog(ThreadSafeStringFormatter.format(
+    			"A participant at \"%s\" has requested a decision on transaction \"%s\"",
+				ClientIPUtil.getClientIP(),
+				t.toString()
+		));
         return transactionDecisions.get(t.getTransactionIndex());
     }
 
@@ -91,13 +117,19 @@ public class CentralCoordinator extends UnicastRemoteObject implements ICentralC
 	public void addWaitCommit(Transaction t, Object waitObject) {
 		int transactionId = t.getTransactionIndex();
 		int count = 0;
+
+		// if transaction is already being tracked, pull the current number of outstanding participants
+		// awaiting commit
 		if (commitMap.containsKey(transactionId)) {
 			count = commitMap.get(transactionId);
 		}
-		
-		if (!objectMap.containsKey(waitObject)) {
+
+		// if there is no wait object associated with the transaction, associate wait object with transaction id
+		if (!objectMap.containsKey(transactionId)) {
 			objectMap.put(transactionId, waitObject);
 		}
+
+		// track transaction and the number of participants awaiting commit
 		commitMap.put(t.getTransactionIndex(), ++count);
 	}
 }

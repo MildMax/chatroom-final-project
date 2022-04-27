@@ -34,7 +34,10 @@ public class CentralChatroomOperations extends UnicastRemoteObject implements IC
 				ClientIPUtil.getClientIP()
 		));
 
+    	// create a transaction to be committed containing the message received from the chat server
     	Transaction t = new Transaction(Operations.LOGMESSAGE, chatroom, message);
+
+    	// run two phase commit
 		TwoPhaseCommit committer = new TwoPhaseCommit();
 		boolean success = committer.GenericCommit(dataNodeParticipantsLock, dataNodesParticipants, t, coordinator);
 
