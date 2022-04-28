@@ -9,10 +9,7 @@ import util.Logger;
 import util.ThreadSafeStringFormatter;
 
 /**
- * In order to validate if a user can access the specified chat room or.
- * is it restricted to the user and once the user logs in connecting the chatroom 
- * with central chatroom are functionalities which afe carried out by ConnectchatRoom
- *
+ * Accepts client TCP connections and associates them with the correct chatroom at the local chat server
  */
 public class ConnectChatroom extends Thread {
 
@@ -21,11 +18,11 @@ public class ConnectChatroom extends Thread {
   private final Object roomMapLock;
 
   /**
-   * constructor of connectChatroom which accepts several parameters like. 
-   * port number of tcp, the roomMap and the locks on them
-   * @param tcpPort port number
-   * @param roomMap several room maps
-   * @param roomMapLock locks on the room maps
+   * Creates an instance of the ConnectChatroom thread
+   *
+   * @param tcpPort port number the chat server accepts client TCP connections on
+   * @param roomMap a map containing available chatrooms at the server
+   * @param roomMapLock locks the roomMap resource
    */
   public ConnectChatroom(int tcpPort, 
       Map<String, Chatroom> roomMap, Object roomMapLock) {
@@ -34,6 +31,10 @@ public class ConnectChatroom extends Thread {
     this.roomMapLock = roomMapLock;
   }
 
+  /**
+   * Continuously accepts client TCP connections for the duration of the chat server's execution and
+   * subscribes each client socket with the appropriate chatroom
+   */
   @Override
   public void run() {
 

@@ -3,40 +3,45 @@ package data;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
-// centralized server -> central server
 /**
- * centralized initialization of all the chatroomoperations.
- *
+ * Defines operations that a chat server should provide to facilitate
+ * central server operation requests
  */
 public interface IChatroomOperations extends Remote {
 
   /**
-   * create chat room.
-   * @param name name of the chatroom
-   * @return sucess or failure message.
-   * @throws RemoteException handles remote object invocations.
+   * Creates a chatroom at the local chat server
+   *
+   * @param name name of the chatroom to create
+   * @return a response indicating whether the operation has succeeded or failed
+   * @throws RemoteException if there is an error during remote communication
    */
   Response createChatroom(String name) throws RemoteException;
-  
+
   /**
-   * delete chatroom.
-   * @param name name of the chatroom
-   * @return sucess or failure message.
-   * @throws RemoteException handles remote object invocations.
+   * Deletes a chatroom from the local chat server
+   *
+   * @param name name of the chatroom to delete
+   * @return a response indicating whether the operation has succeeded or failed
+   * @throws RemoteException if there is an error during remote communication
    */
   Response deleteChatroom(String name) throws RemoteException;
-  
+
   /**
-   * chatroomdate.
-   * @return reesponse of the chatroom data.
-   * @throws RemoteException handles remote object invocations.
+   * Provides information regarding the number of chatrooms and users hosted on the current
+   * chat server
+   *
+   * @return a response containing information regarding the number of chatrooms and users hosted on the
+   *         current chat server
+   * @throws RemoteException if there is an error during remote communication
    */
   ChatroomDataResponse getChatroomData() throws RemoteException;
-  
+
   /**
-   * list of chatrooms.
-   * @return list of chatrooms.
+   * Gets a list of names for chatrooms hosted at the local chat server
+   *
+   * @return a response containing a list of names for chatrooms hosted at the local chat server
+   * @throws RemoteException if there is an error during remote communication
    */
-  
   ChatroomListResponse getChatrooms() throws RemoteException;
 }

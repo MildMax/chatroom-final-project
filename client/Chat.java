@@ -1,7 +1,5 @@
 package client;
 
-
-
 import data.ChatroomResponse;
 import data.ICentralUserOperations;
 import data.IChatroomUserOperations;
@@ -19,11 +17,9 @@ import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
 /** 
- * Chat class which implements action listener which fulfills. 
- * the functionality of view for the clinet application.
- *
+ * Facilitates communication between the server and the client. Displays chat messages to client and publishes
+ * messages to the chatroom. Utilizes the JSwing library to facilitate the chat window.
  */
-
 class Chat extends JFrame implements ActionListener {
 
   private static JTextArea textDisplay;
@@ -43,15 +39,15 @@ class Chat extends JFrame implements ActionListener {
   private static boolean isRunning;
 
   /**
-   * constructor for the chat class which accepts user name of the user and the.
-   * roomname, hostname tcp port and so on
+   * Creates an instance of the Chat object
+   *
    * @param username name of the user
    * @param chatroomName name of the chat room
-   * @param hostname name of the host
-   * @param tcpPort port number 
-   * @param rmiPort port number
-   * @param centralServer central server instance 
-   * @param chatWait waiting boolean value.
+   * @param hostname hostname for the chat server supporting the chatroom
+   * @param tcpPort port that the chat server is accepting client TCP connections on
+   * @param rmiPort port that the chat server is accepting client RMI requests on
+   * @param centralServer RMI accessor used to contact the central server
+   * @param chatWait Object that synchronizes the command prompt with the chat server window
    */
 
   public Chat(String username, String chatroomName, 
@@ -80,12 +76,14 @@ class Chat extends JFrame implements ActionListener {
       }
     });
 
+    // create shutdown hook to terminate receive thread if application receives sigterm during
+    // chatroom operations
     Runtime.getRuntime().addShutdownHook(Chat.chatThread);
-
-
   }
 
-  // main class
+  /**
+   * Initializes the chat window and establishes connection with the Chat server hosting the chatroom
+   */
   public void start() {
 
     Logger.writeMessageToLog("Setting up JSwing window...");
@@ -250,8 +248,11 @@ class Chat extends JFrame implements ActionListener {
     textDisplay.setText("System >> Welcome to the chatroom! Please be civil.");
     }
 
-  // if the button is pressed
-  // use this to send messages to the server
+  /**
+   * Publishes a message from the client to the chat server
+   *
+   * @param e the action event provided by JSwing
+   */
   @Override
   public void actionPerformed(ActionEvent e) {
     String s = e.getActionCommand();
@@ -308,15 +309,27 @@ class Chat extends JFrame implements ActionListener {
     }
   }
 
+  /**
+   * Receives chat messages published to the chat server
+   */
   static class ReceiveThread implements Runnable {
 
     private Socket receiveSocket;
     BufferedReader socketReader;
 
+    /**
+     * Creates an instance of the ReceiveThread object
+     *
+     * @param s the socket to receive messages on
+     */
     ReceiveThread(Socket s) {
       this.receiveSocket = s;
     }
 
+    /**
+     * Continuously receives messages from the chat server for the duration of the chatroom session
+     * for this user
+     */
     @Override
     public void run() {
       // create a reader to parse data received from the server via the TCP connection
@@ -414,6 +427,11 @@ class Chat extends JFrame implements ActionListener {
     }
   }
 
+  /**
+   * Creates a TCP socket and establishes a connection with the chat server
+   *
+   * @return the socket that is connected to the chat server
+   */
   private static Socket establishSocket() {
     Socket s = null;
     try {

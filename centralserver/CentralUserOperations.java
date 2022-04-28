@@ -24,9 +24,7 @@ import util.ThreadSafeStringFormatter;
 
 /**
  * CentralUserOperations class implements ICentralUserOperations interface  and is responsible
- * for validating all the user operations which can be acrried out in a chatroom
- * registration to transaction of data among several chatrooms.
- *
+ * for validating all the user operations.
  */
 public class CentralUserOperations extends UnicastRemoteObject implements ICentralUserOperations {
 
@@ -41,20 +39,20 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
   private final Object reestablishLock;
 
   // const message for existing chatrooms -- used during re-establish connection
-  private static final String EXISTING_CHATROOM_MESSAGE = 
-      "A chatroom with this name already exists";
+  private static final String EXISTING_CHATROOM_MESSAGE = "A chatroom with this name already exists";
 
   /**
-   * Constructor of centralUserOperations which accespts the below parameters. 
-   * @param chatroomNodes list of all chatroom nodes
-   * @param chatroomNodeLock lock on specific nodes
-   * @param dataNodesOperations list of data operations on nodes
-   * @param dataNodeOperationsLock locks on nodes
-   * @param dataNodesParticipants list of participants 
-   * @param dataNodeParticipantsLock list of locks on datanodes of participants
+   * Constructor of centralUserOperations engine.
+   *
+   * @param chatroomNodes list of all chatroom nodes in the system
+   * @param chatroomNodeLock locks operations on chatroom nodes
+   * @param dataNodesOperations list of data operation node interfaces for all data servers in the system
+   * @param dataNodeOperationsLock locks on data operation node interfaces
+   * @param dataNodesParticipants list of participant interfaces for all data servers in the system
+   * @param dataNodeParticipantsLock locks on list of participant data nodes
    * @param coordinator instance of the central coordinator
-   * @param cleaner instance to clean to chatroom
-   * @throws RemoteException to handle remote object invocations.
+   * @param cleaner cleans up unavailable chatroom nodes
+   * @throws RemoteException if there is an error during remote communication
    */
   public CentralUserOperations(List<RMIAccess<IChatroomOperations>> chatroomNodes,
       Object chatroomNodeLock,
@@ -76,6 +74,14 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 
   }
 
+  /**
+   * Registers a user with the system. Initiates two phase commit when trying to create user.
+   *
+   * @param username name of the user
+   * @param password password for the user account
+   * @return a response indicating whether the operation succeeded or failed
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public Response registerUser(String username, String password) throws RemoteException {
 
@@ -155,6 +161,14 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     }
   }
 
+  /**
+   * Logs a user into the chatroom application
+   *
+   * @param username name of the user's account
+   * @param password password for the user account
+   * @return a response whether the login failed or succeeded
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public Response login(String username, String password) throws RemoteException {
 
@@ -211,6 +225,12 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     }
   }
 
+  /**
+   * Gets a list of available chatrooms from chatroom servers in the system
+   *
+   * @return a list of available chatrooms in the system
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public ChatroomListResponse listChatrooms() throws RemoteException {
 
@@ -242,6 +262,16 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     return new ChatroomListResponse(chatroomList);
   }
 
+  /**
+   * Initiates the creation of a chatroom on behalf of a client. Creates chatroom using
+   * two phase commit
+   *
+   * @param chatroomName name of the chatroom to create
+   * @param username name of the user creating the chatroom
+   * @return a response containing information about the server hosting the chatroom if the operation succeeds,
+   *         otherwise indicates operation failed
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public ChatroomResponse createChatroom(String chatroomName, 
       String username) throws RemoteException {
@@ -339,6 +369,12 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     }
   }
 
+  /**
+   * Checks to see if a chatroom exists in the system
+   *
+   * @param chatroomName the name of the chatroom to check
+   * @return true if chatroom exists, false otherwise
+   */
   private boolean isChatroomExists(String chatroomName) {
     boolean chatroomExists = false;
     for (RMIAccess<IDataOperations> node : this.dataNodesOperations) {
@@ -356,6 +392,13 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     return chatroomExists;
   }
 
+  /**
+   * Determines if a user's login info can be successfully verified with the system
+   *
+   * @param username the username to check
+   * @param password the password associated with the username to check
+   * @return true if the user's info can be verified, false otherwise
+   */
   private boolean isUserVerified(String username, String password) {
     // iterate through data nodes until the application can verify that the user exists
     // and that they have provided the correct password
@@ -379,6 +422,13 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     return false;
   }
 
+  /**
+   * Determines if a user is the owner/creator of a chatroom
+   *
+   * @param chatroomName the chatroom whose owner should be checked
+   * @param username the user to be verified as the owner of the chatroom
+   * @return true if user is the owner/creator of the chatroom, false otherwise
+   */
   private boolean isUserOwner(String chatroomName, String username) {
     // iterate through list of data nodes to verify that a particular user
     // is the original creator of the chatroom
@@ -400,6 +450,15 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     return false;
   }
 
+  /**
+   * Deletes a chatroom from the system. Uses two phase commit
+   *
+   * @param chatroomName name of the chatroom to delete
+   * @param username name of the user requesting to delete the chatroom
+   * @param password password for the provided user
+   * @return a response indicating whether the operation succeeded or failed
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public Response deleteChatroom(String chatroomName, 
       String username, String password) throws RemoteException {
@@ -526,6 +585,13 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 
   }
 
+  /**
+   * Gets location and port information pertaining to a chatroom in the system
+   *
+   * @param chatroomName name of the chatroom to find
+   * @return hostname and ports for the chatroom if it exists, otherwise indicates the operation failed
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public ChatroomResponse getChatroom(String chatroomName) throws RemoteException {
 
@@ -542,7 +608,14 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
     }
   }
 
-
+  /**
+   * Reestablishes a chatroom on an available server node if the original node has crashed
+   *
+   * @param chatroomName name of the chatroom to reestablish
+   * @param username name of the user that lost connection to the chatroom server
+   * @return address and port information for the new chat server if success, otherwise indicates process failed
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public ChatroomResponse reestablishChatroom(String chatroomName, 
       String username) throws RemoteException {
@@ -591,11 +664,13 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 
   /**
    * getChatroomResponse method fulfils the functionality of identifying
-   * rmi accessor for the speciifc chat room and getting the data response 
+   * rmi accessor for the specific chat room server and getting the data response
    * from the server for the specific chatroom.
-   * @param chatroomName name of the chat room
-   * @param chatroomNodes nodes of the chatroom.
-   * @return returns the tcp and rmi ports and address used to connect
+   *
+   * @param chatroomName name of the chat room to retrieve
+   * @param chatroomNodes chat server nodes in the system
+   * @return returns the tcp and rmi ports and address used to connect to the server if success, indicates failed
+   *         operation otherwise
    * @throws RemoteException handles exceptions caused while accessing remote objects.
    */
   private static ChatroomResponse getChatroomResponse(String chatroomName, 
@@ -633,7 +708,15 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
         dataResponse.getTcpPort(), dataResponse.getRmiPort());
   }
 
-  private synchronized static RMIAccess<IChatroomOperations> findChatroom(
+  /**
+   * Finds a chatroom from available chat servers in the system
+   *
+   * @param chatroomName the name of the chatroom to find
+   * @param chatroomNodes chat servers in the system
+   * @return RMI accessor for chat server hosting the chatroom
+   * @throws RemoteException if there is an error during remote communication
+   */
+  private synchronized static RMIAccess<IChatroomOperations> findChatroom (
       String chatroomName, List<RMIAccess<IChatroomOperations>> chatroomNodes) 
           throws RemoteException {
     // iterate through a list of available chat nodes to find the chatroom dynamically
@@ -674,17 +757,13 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
   }
 
   /**
-   * ChatroomResponse fulfills the functionality of first iterating over
-   * all the availablke chatrooms to see if the current chatroom instance is
-   * available then verifying if the server contains the same name and if the 
-   * chatroom exists in the server as well it returns with a failed message asking
-   * user to reestablish a unique one. This method takes care of all the chatroom
-   * operation responses.
-   * @param chatroomName name of the chat room
-   * @param chatroomNodeLock lock on the speciifc chatroomnode
-   * @param chatroomNodes list of all chatroomNodes
-   * @return the chatroomresponse message of the specific chatroom
-   * @throws RemoteException handles the remote exceptions 
+   * Attempts to create a chatroom on an available chat server in the system
+   *
+   * @param chatroomName name of the chat room to create
+   * @param chatroomNodeLock locks resources on the list of chatroom server interfaces
+   * @param chatroomNodes list of all chat server interfaces
+   * @return an object containing address and port information for the server hosting the created chatroom
+   * @throws RemoteException if there is an error during remote communication
    */
   public static ChatroomResponse innerCreateChatroom(String chatroomName,
       Object chatroomNodeLock,
@@ -818,6 +897,13 @@ public class CentralUserOperations extends UnicastRemoteObject implements ICentr
 
   }
 
+  /**
+   * Deletes a chatroom from a chat server in the system
+   *
+   * @param chatroomName the chatroom to delete
+   * @return a response indicating whether the operation succeeded or failed
+   * @throws RemoteException if there is an error during remote communication
+   */
   private Response innerDeleteChatroom(String chatroomName) throws RemoteException {
     synchronized (chatroomNodeLock) {
       // find the chat server hosting the chatroom to be deleted

@@ -15,8 +15,7 @@ import java.util.Map;
 
 /**
  * DataOperations class which implements IDataOperations and which fulfills the
- * responsibility of all data operations.
- *
+ * responsibility of data server operations on local server resources
  */
 public class DataOperations extends UnicastRemoteObject implements IDataOperations {
 
@@ -28,14 +27,14 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
   private final Path dir;
 
   /**
-   * constructor of the data operations which accepts user map its locks.
-   * server info.
-   * @param userMap user map
-   * @param userMapLock locks on the map
-   * @param chatroomMap chat room map
-   * @param channelMapLock locks on the chat room map
-   * @param serverInfo server info required 
-   * @throws RemoteException handles remote object invocations.
+   * Creates an instance of the DataOperations engine
+   *
+   * @param userMap a map of users registered at the data server
+   * @param userMapLock locks the userMap resource
+   * @param chatroomMap a map of chatrooms in the system and their owners
+   * @param channelMapLock locks the chatroomMap resource
+   * @param serverInfo port and addressing information required to run the data server
+   * @throws RemoteException if there is an error during remote communication
    */
   public DataOperations(Map<String, String> userMap, 
       Object userMapLock, Map<String, String> chatroomMap, 
@@ -48,6 +47,14 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
     this.dir =  Paths.get("files_" + serverInfo.getId() + "/");
   }
 
+  /**
+   * Verifies that a user exists and that the provided password matches what is on file for the user
+   *
+   * @param username the user to verify
+   * @param password the password to be checked against the user info on file
+   * @return a response indicating whether the user has been verified or not
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public Response verifyUser(String username, String password) throws RemoteException {
 
@@ -88,6 +95,14 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
     }
   }
 
+  /**
+   * Verifies that a user is the original creater and owner of a chatroom
+   *
+   * @param chatroomName the name of the chatroom to check the owner of
+   * @param username the username to be verified as the owner of the chatroom
+   * @return a response indicating whether the user is the owner of the chatroom or not
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public Response verifyOwnership(String chatroomName, String username) throws RemoteException {
 
@@ -132,6 +147,13 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
     }
   }
 
+  /**
+   * Determines whether a username exists in the system
+   *
+   * @param username the username to check
+   * @return true if user exists, false otherwise
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public boolean userExists(String username) throws RemoteException {
 
@@ -145,6 +167,13 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
     return userMap.containsKey(username);
   }
 
+  /**
+   * Determines whether a chatroom exists in the system
+   *
+   * @param chatroom the chatroom to check
+   * @return true if the chatroom exists, false otherwise
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public boolean chatroomExists(String chatroom) throws RemoteException {
 
@@ -159,9 +188,9 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
   }
 
   /**
-   * deletes a chatroom if its not used for a longer period.
-   * or if the user wants to delete it
-   * @param chatroomName name of the room
+   * Deletes a chatroom and associated entries and files from the local data server
+   *
+   * @param chatroomName name of the chatroom to delete
    */
   public void deleteChatroom(String chatroomName) {
 
@@ -209,9 +238,10 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
   }
 
   /**
-   * creates a user with the given name and password.
-   * @param username user name 
-   * @param password password
+   * Creates a user with the given name and password.
+   *
+   * @param username username of the created account
+   * @param password password associated with the username
    */
   public void createUser(String username, String password) {
 
@@ -231,9 +261,10 @@ public class DataOperations extends UnicastRemoteObject implements IDataOperatio
   }
 
   /**
-   * creates a chat room with the given name authorized by the user name.
-   * @param chatroomName name of the chatroom
-   * @param username user name 
+   * Creates a chat room and associated files at the local data server
+   *
+   * @param chatroomName name of the chatroom to create
+   * @param username username to be associated as owner and creator of the chatroom
    */
   public void createChatroom(String chatroomName, String username) {
 

@@ -13,8 +13,8 @@ import java.util.Date;
 
 /**
  * CristiansLogger is the class which implements runnable and uses 
- * chritains algorithm mechanisam to maintain loggers through out the 
- * application.
+ * Cristian's algorithm  to maintain a synchronized clock at the local logger through out the
+ * lifetime of the server
  *
  */
 public class CristiansLogger implements Runnable {
@@ -26,9 +26,9 @@ public class CristiansLogger implements Runnable {
   private static BufferedWriter logWriter;
 
   /**
-   * Initializes the ServerLogger with the respective id which is easier for
-   * maintaining fault tolerance.
-   * @param id id of the individual logger.
+   * Initializes the ServerLogger with the respective id use to generate a unique log file for the server
+   *
+   * @param id id of the server
    */
   public static void loggerSetup(String id) {
     File logFile = new File(String.format("./%sLog.txt", id));
@@ -49,13 +49,17 @@ public class CristiansLogger implements Runnable {
     }
   }
 
+  /**
+   * Sets the RMI accessor for the central server used to retrieve the master time for the system
+   *
+   * @param accessor the RMI accessor for the central server
+   */
   public static void setCentralAccessor(RMIAccess<ICentralOperations> accessor) {
     CristiansLogger.accessor = accessor;
   }
 
   /**
-   * Writes a standard message to the server log so as to maintain.
-   * an accurate loggers for future expansions.
+   * Writes a standard message to the server log
    *
    * @param log message to be written to server log
    */
@@ -84,12 +88,13 @@ public class CristiansLogger implements Runnable {
   public static synchronized void writeErrorToLog(String log) {
     CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format("ERROR %s", log));
   }
-  /**
-   * critians algorithm is implemented in this method.
-   * @throws RemoteException handles remote invocations
-   * @throws NotBoundException handles out of bounds exceptions
-   */
 
+  /**
+   * Runs Cristian's algorithm using the master time provided by the central server
+   *
+   * @throws RemoteException if there is an error during remote communication
+   * @throws NotBoundException if the central RMI registry cannot be located
+   */
   public static void cristiansAlgorithm() throws RemoteException, NotBoundException {
 
     CristiansLogger.writeMessageToLog("Running Cristian's algorithm...");
@@ -147,6 +152,9 @@ public class CristiansLogger implements Runnable {
     return sdf.format(date);
   }
 
+  /**
+   * Runs Cristian's Algorithm every 10 seconds to continuously maintain a synchronized local clock
+   */
   @Override
   public void run() {
     // run Cristians for the duration of program

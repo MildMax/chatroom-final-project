@@ -8,44 +8,50 @@ import util.ClientIPUtil;
 import util.CristiansLogger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
-
-import javax.swing.plaf.TableHeaderUI;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.Map;
+
 /**
- * chatroomUserOperations class implements IChatroomUserOperations and is responsible.
- * for fulfilling several user operations like joining a chatroom
- * leaving a chatroom,
- *
+ * Implements the IChatroomUserOperations and is responsible
+ * for fulfilling user requests
  */
 public class ChatroomUserOperations extends UnicastRemoteObject implements IChatroomUserOperations {
 
-  private final Map<String, Chatroom> roomList;
-  private final Object roomListLock;
+  private final Map<String, Chatroom> roomMap;
+  private final Object roomMapLock;
   private final RMIAccess<ICentralChatroomOperations> centralServerAccessor;
   private final Object serverAccessorLock;
   private final Object logMessageLock;
 
   /**
-   * constructor of chatroomUserOperations which acceepts all teh following parameters.
-   * @param roomList list of all the rooms
-   * @param roomListLock locks on specific rooms
-   * @param serverInfo all server information like port numbers 
-   * @param centralServerPort central server port number
-   * @throws RemoteException handles remote invocation exceptions
+   * Creates an instance of the ChatroomUserOperations engine
+   *
+   * @param roomMap map of all the chatrooms and their names at the local chat server
+   * @param roomMapLock locks the roomMap resource
+   * @param serverInfo provides all addressing and port information for the local chat server
+   * @param centralServerPort port where central server is accepting chatroom operation requests
+   * @throws RemoteException if there is an error during remote communication
    */
-  public ChatroomUserOperations(Map<String, Chatroom> roomList, 
-      Object roomListLock, ServerInfo serverInfo, int centralServerPort) throws RemoteException {
-    this.roomList = roomList;
-    this.roomListLock = roomListLock;
+  public ChatroomUserOperations(Map<String, Chatroom> roomMap,
+                                Object roomMapLock, ServerInfo serverInfo, int centralServerPort) throws RemoteException {
+    this.roomMap = roomMap;
+    this.roomMapLock = roomMapLock;
     this.centralServerAccessor = new RMIAccess<>(serverInfo.getCentralServerHostname(), 
         centralServerPort, "ICentralChatroomOperations");
     this.serverAccessorLock = new Object();
     this.logMessageLock = new Object();
   }
 
+  /**
+   * Publishes a message from a user to the appropriate chatroom
+   *
+   * @param chatroomName name of the chat room to publish the message to
+   * @param username name of the user publishing the message
+   * @param message the message to be published
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public void chat(String chatroomName, String username, String message) throws RemoteException {
 
@@ -60,9 +66,9 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
     // publish the message along with the user's name to all of the 
     //users subscribed to the given chatroom
     synchronized (serverAccessorLock) {
-      synchronized (roomListLock) {
+      synchronized (roomMapLock) {
         // get the chatroom to publish the message to
-        Chatroom chatroom = this.roomList.get(chatroomName);
+        Chatroom chatroom = this.roomMap.get(chatroomName);
 
         // if the  returned chatroom object is not null, publish the message
         if (chatroom != null) {
@@ -133,6 +139,13 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
         ));
   }
 
+  /**
+   * Indicates to a chatroom that a user has joined the chat
+   *
+   * @param chatroomName name of the chat room the user has joined
+   * @param username name of the user that joined the chatroom
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public void joinChatroom(String chatroomName, String username) throws RemoteException {
 
@@ -143,9 +156,9 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
         chatroomName
         ));
 
-    synchronized (roomListLock) {
+    synchronized (roomMapLock) {
       // get the chatroom to publish the message to
-      Chatroom chatroom = this.roomList.get(chatroomName);
+      Chatroom chatroom = this.roomMap.get(chatroomName);
       // if the chatroom is not null, it exists, publish join message
       if (chatroom != null) {
         chatroom.publish("System >> " + username + " has joined the chat");
@@ -162,6 +175,13 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
 
   }
 
+  /**
+   * Unsubscribes a user from a chatroom and publishes a leave message to remaining users
+   *
+   * @param chatroomName name of the chat room the user is leaving
+   * @param username name of the user leaving the chatroom
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public void leaveChatroom(String chatroomName, String username) throws RemoteException {
 
@@ -172,9 +192,9 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
         chatroomName
         ));
 
-    synchronized (roomListLock) {
+    synchronized (roomMapLock) {
       // get the chatroom that the user wishes to leave
-      Chatroom chatroom = this.roomList.get(chatroomName);
+      Chatroom chatroom = this.roomMap.get(chatroomName);
       if (chatroom != null) {
         // if the chatroom is not null, unsubscribe the user from the chatroom
         // and publish the leave chatroom message to the remaining subscribers
@@ -188,6 +208,5 @@ public class ChatroomUserOperations extends UnicastRemoteObject implements IChat
             ));
       }
     }
-
   }
 }

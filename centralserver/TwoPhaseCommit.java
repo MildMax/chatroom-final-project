@@ -12,21 +12,19 @@ import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
 /**
- * 
- * 
- *
+ * Defines methods pertaining to the 2 phase commit protocol for the coordinator at the central server
  */
 public class TwoPhaseCommit {
 
   /**
    * A generic two phase commit function that doesn't require additional 
-   * resources to be generated at external
-   * nodes
-   * @param dataNodeParticipantsLock locks on datanodes of participants
-   * @param dataNodesParticipants list of datanodes of participants
-   * @param t transaction instance 
-   * @param coordinator instance of central coordinator
-   * @return true if sucess else returns false upon failure.
+   * resources to be generated at external nodes
+   *
+   * @param dataNodeParticipantsLock locks on list of data node participants
+   * @param dataNodesParticipants list of data node participants
+   * @param t the transaction to do 2 phase commit on
+   * @param coordinator instance of central coordinator at the central server
+   * @return true if success else returns false upon failure
    */
   public boolean GenericCommit(Object dataNodeParticipantsLock, 
       List<RMIAccess<IDataParticipant>> dataNodesParticipants, 
@@ -50,11 +48,12 @@ public class TwoPhaseCommit {
   }
 
   /**
-   * checks if a transaction cam be commited.
-   * @param t transaction instance
-   * @param dataNodesParticipants list of datanodes of participants 
-   * @param dataNodeParticipantsLock locks on data nodes.
-   * @return the sucess or failure boolean flag.
+   * checks if a transaction cam be committed.
+   *
+   * @param t the transaction to check can be committed
+   * @param dataNodesParticipants list of data node participants
+   * @param dataNodeParticipantsLock locks on list of data node participants
+   * @return true if transaction can be committed, false otherwise
    */
   public boolean canCommit(Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, 
       Object dataNodeParticipantsLock) {
@@ -117,12 +116,12 @@ public class TwoPhaseCommit {
   }
 
   /**
-   * on checking the status of whether a commit can be performed on a transaction 
-   * performing the commit is taken care by the doCommit method.
-   * @param t transaction instance 
-   * @param dataNodesParticipants list of datanodes of participants
-   * @param dataNodeParticipantsLock l;ocks on datanodes
-   * @param coordinator central coordinator instnance.
+   * Indicates to participant nodes that they should commit a transaction
+   *
+   * @param t the transaction to commit
+   * @param dataNodesParticipants list of data node participants
+   * @param dataNodeParticipantsLock locks list of data node participants
+   * @param coordinator central coordinator instance at the central server
    */
   public void doCommit(Transaction t, 
       List<RMIAccess<IDataParticipant>> dataNodesParticipants, 
@@ -195,10 +194,11 @@ public class TwoPhaseCommit {
   }
 
   /**
-   * abort the transaction in case of any abrupt cause.
-   * @param t instance of transaction
-   * @param dataNodesParticipants list of data nodes 
-   * @param dataNodeParticipantsLock locks on datanodes.
+   * Indicates to participant data nodes a transaction should be aborted
+   *
+   * @param t the transaction to abort
+   * @param dataNodesParticipants list of data node participants
+   * @param dataNodeParticipantsLock locks list of data node participants
    */
   public void doAbort(Transaction t, List<RMIAccess<IDataParticipant>> dataNodesParticipants, 
       Object dataNodeParticipantsLock) {
@@ -242,17 +242,29 @@ public class TwoPhaseCommit {
     }
   }
 
+  /**
+   * Checks if a particular participant can commit a transaction
+   */
   private static class CanCommitThread extends Thread {
 
     private final RMIAccess<IDataParticipant> participant;
     private final Transaction t;
     private Ack result = Ack.NA;
 
+    /**
+     * Creates an instance of the CanCommitThread
+     *
+     * @param participant the participant to request canCommit on
+     * @param t the transaction to be checked
+     */
     CanCommitThread(RMIAccess<IDataParticipant> participant, Transaction t) {
       this.participant = participant;
       this.t = t;
     }
 
+    /**
+     * Runs the canCommit operation on the provided participant
+     */
     @Override
     public void run() {
       // issue a canCommit request to the provided participant and set the result of the request
@@ -267,14 +279,29 @@ public class TwoPhaseCommit {
       }
     }
 
+    /**
+     * Gets the result of the canCommit call
+     *
+     * @return YES if transaction can be committed, NO otherwise
+     */
     public Ack getResult() { 
       return this.result; 
     }
 
+    /**
+     * Gets the interface for the participant contacted during canCommit
+     *
+     * @return the interface for the participant contacted during canCommit
+     */
     public RMIAccess<IDataParticipant> getParticipant() {
       return this.participant; 
     }
 
+    /**
+     * Gets the transaction checked during canCommit
+     *
+     * @return the transaction checked during canCommit
+     */
     public Transaction getTransaction() {
       return t;
     }

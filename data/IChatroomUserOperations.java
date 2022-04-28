@@ -6,33 +6,35 @@ import java.rmi.RemoteException;
 // client -> chatroom
 
 /**
- * centralized inititation of chatroom user operations.
- *
+ * Defines methods that a chat server should provide to facilitate user requests
  */
 public interface IChatroomUserOperations extends Remote {
 
   /**
-   * chat using tje chatroomname username message.
-   * @param chatroomName name of the chat room
-   * @param username name of the user
-   * @param message message
-   * @throws RemoteException handles remote object invocations.
+   * Publishes a message from a user to the appropriate chatroom
+   *
+   * @param chatroomName name of the chat room to publish the message to
+   * @param username name of the user publishing the message
+   * @param message the message to be published
+   * @throws RemoteException if there is an error during remote communication
    */
   void chat(String chatroomName, String username, String message) throws RemoteException;
-  
+
   /**
-   * 
-   * @param chatroomName name of the chat room.
-   * @param username name of the user
-   * @throws RemoteException handles remote object invocations.
+   * Indicates to a chatroom that a user has joined the chat
+   *
+   * @param chatroomName name of the chat room the user has joined
+   * @param username name of the user that joined the chatroom
+   * @throws RemoteException if there is an error during remote communication
    */
   void joinChatroom(String chatroomName, String username) throws RemoteException;
-  
+
   /**
-   * 
-   * @param chatroomName name of the chat room.
-   * @param username name of the user
-   * @throws RemoteException handles remote object invocations.
+   * Unsubscribes a user from a chatroom and publishes a leave message to remaining users
+   *
+   * @param chatroomName name of the chat room the user is leaving
+   * @param username name of the user leaving the chatroom
+   * @throws RemoteException if there is an error during remote communication
    */
   void leaveChatroom(String chatroomName, String username) throws RemoteException;
 

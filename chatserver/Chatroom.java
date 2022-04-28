@@ -10,10 +10,7 @@ import util.CristiansLogger;
 import util.ThreadSafeStringFormatter;
 
 /**
- * Each object of the chatroom is instance of the Chatroom class and shares
- * the following features among them.
- * @author hephzibahsaidu
- *
+ * Defines operations required to facilitate a chatroom on a chat server
  */
 public class Chatroom {
 
@@ -24,6 +21,7 @@ public class Chatroom {
   /**
    * constructor of Chatroom which accepts the name which is the unique
    * identifier for each room.
+   *
    * @param roomName name of the chat room
    */
   public Chatroom(String roomName) {
@@ -33,9 +31,10 @@ public class Chatroom {
   }
 
   /**
-   * chatroom can subscribe using its username and an instance of the socket.
+   * Subscribes a user to a chatroom using its username and an instance of the socket.
+   *
    * @param s socket instance
-   * @param username name of the chatroom
+   * @param username name of the user to associate with the socket
    */
   public void subscribe(Socket s, String username) {
     CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
@@ -50,12 +49,12 @@ public class Chatroom {
       this.socketMap.put(username, s);
     }
   }
-  /**
-   * in order to unsubscribe from the chatroom this methos is useful which.
-   * accepts the unique idnetified of the chatroom
-   * @param username name of the chatroom
-   */
 
+  /**
+   * Unsubscribes a user and their associated socket from the chatroom
+   *
+   * @param username name of the user to be unsubscribed from the chatroom
+   */
   public void unsubscribe(String username) {
     CristiansLogger.writeMessageToLog(ThreadSafeStringFormatter.format(
         "Unsubscribing client \"%s\" from chatroom \"%s\"",
@@ -79,10 +78,9 @@ public class Chatroom {
   }
 
   /**
-   * this method is used to publish the communictaion among the chatroom participants
-   * using sockets the messages are being published in the network such that
-   * the messages are acessed by the participants.
-   * @param message the message which should be published.
+   * Publishes a message to all subscribers in the chatroom
+   *
+   * @param message the message which should be published to all subscribers
    */
   public void publish(String message) {
     synchronized (socketMapLock) {
@@ -152,8 +150,9 @@ public class Chatroom {
   }
 
   /**
-   * The count of users currently subscribed to this chatroom.
-   * @return number of users.
+   * The count of users currently subscribed to the chatroom
+   *
+   * @return number of users subscribed to the chatroom
    */
   public int getUserCount() {
     // retrieve the number of users currently subscribed to this chatroom

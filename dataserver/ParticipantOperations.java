@@ -17,11 +17,10 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
 /**
- * participant operation class which implements IDataParticipant
- * is responsible for all the operations which can be oerformed by participants
- * commiting, aborting and writing files.
- *
+ * Implements IDataParticipant interface and is responsible for defining
+ * all the participant operations for two phase commit
  */
 public class ParticipantOperations extends UnicastRemoteObject implements IDataParticipant {
 
@@ -33,14 +32,14 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
   private final Map<Integer, CoordinatorDecisionThread> decisionThreadMap;
 
   /**
-   * constructor of the participantoperations class.
-   * @param coordinatorHostname central cooridinator name
-   * @param coordinatorPort port number of coordinato
-   * @param serverId id of the server.
-   * @param operationsEngine operations enginer
-   * @throws RemoteException handles remote object invocations
+   * Creates an instance of the ParticipantOperations engine
+   *
+   * @param coordinatorHostname hostname of the machine supporting the central server
+   * @param coordinatorPort port that the central server is accepting participant requests on
+   * @param serverId unique ID for the local data server
+   * @param operationsEngine provides read and write operations on resources at the local data server
+   * @throws RemoteException if there is an error during remote communication
    */
-  
   public ParticipantOperations(String coordinatorHostname, 
       int coordinatorPort, String serverId, 
       DataOperations operationsEngine) throws RemoteException {
@@ -52,6 +51,14 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     this.decisionThreadMap = Collections.synchronizedMap(new HashMap<>());
   }
 
+  /**
+   * Checks if a transaction can be committed
+   *
+   * @param t transaction to be checked
+   * @param p the participant RMI accessor for the local data server
+   * @return YES if the transaction can be committed, NO otherwise
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public Ack canCommit(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException {
 
@@ -83,6 +90,13 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     return Ack.YES;
   }
 
+  /**
+   * Commits a transaction on the local data server
+   *
+   * @param t transaction to commit
+   * @param p this data nodes RMIAccess interface
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public void doCommit(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException {
 
@@ -191,6 +205,12 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
     transactionMap.remove(t.getTransactionIndex());
   }
 
+  /**
+   * Indicates that a transaction should be aborted at the local data server
+   *
+   * @param t transaction to be aborted
+   * @throws RemoteException
+   */
   @Override
   public void doAbort(Transaction t) throws RemoteException {
 
@@ -217,12 +237,12 @@ public class ParticipantOperations extends UnicastRemoteObject implements IDataP
   }
 
   /**
-   * fulfills the functionality of writing all the data into the file.
-   * taking file name as input and the data to be written.
-   * @param fileName name of the file
-   * @param data data to be entered
-   * @return the boolen of sucess or failure.
-   * @throws RemoteException handles remote object invocations
+   * Fulfills the functionality of writing provided data into the requested file
+   *
+   * @param fileName name of the file to write to
+   * @param data data to be written to file
+   * @return true if write was successful, false otherwise
+   * @throws RemoteException if there is an error during remote communication
    */
   public synchronized boolean writeFile(String fileName, String data) throws RemoteException {
     try {

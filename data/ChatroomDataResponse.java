@@ -3,9 +3,8 @@ package data;
 import java.io.Serializable;
 
 /**
- * chatroomDataResponse implements serializable ans is responsbile
- * for all the chatroomresponses like hostname, port number.
- *
+ * Contains information regarding the address and host information for a server as well as the number
+ * of users and chatrooms on that server
  */
 public class ChatroomDataResponse implements Serializable {
 
@@ -16,12 +15,13 @@ public class ChatroomDataResponse implements Serializable {
   private final int tcpPort;
 
   /**
-   * constructor which initiates all the objects used in the application.
-   * @param chatrooms number of chat rooms
-   * @param users number of users
-   * @param hostname name of the host
-   * @param rmiPort rmi port number 
-   * @param tcpPort tcp port number
+   * Creates an instance of the ChatroomDataResponse
+   *
+   * @param chatrooms number of chat rooms at a chat server
+   * @param users number of users at a chat serer
+   * @param hostname hostname of the machine supporting the chat server
+   * @param rmiPort rmi port the chat server is accepting client RMI requests on
+   * @param tcpPort tcp port the chat server is accepting client connections on
    */
   public ChatroomDataResponse(int chatrooms, int users, String hostname, int rmiPort, int tcpPort) {
     this.chatrooms = chatrooms;
@@ -32,40 +32,45 @@ public class ChatroomDataResponse implements Serializable {
   }
 
   /**
-   * the number of chat rooms.
-   * @return the current number of chatrooms.
+   * The number of chat rooms at the chat server
+   *
+   * @return the current number of chatrooms at the chat server
    */
   public int getChatrooms() {
     return this.chatrooms;
   }
 
   /**
-   * current number of users.
-   * @return the current number of users.
+   * The number of users at the chat server
+   *
+   * @return the current number of users at the chat server
    */
   public int getUsers() {
     return this.users;
   }
 
   /**
-   * current host name.
-   * @return the current host name.
+   * Get the hostname of the machine supporting the chat server
+   *
+   * @return the hostname of the machine supporting the chat server
    */
   public String getHostname() {
     return this.hostname; 
   }
 
   /**
-   * current rmi port number.
-   * @return the current rmi port number.
+   * Get the port the chat server is accepting client RMI requests on
+   *
+   * @return the port the chat server is accepting client RMI requests on
    */
   public int getRmiPort() { 
     return this.rmiPort; 
   }
 
   /**
-   * current tcp port number.
-   * @return the current tcp port number
+   * Gets the port the chat server is accepting client TCP connections on
+   *
+   * @return the port the chat server is accepting client TCP connections on
    */
   public int getTcpPort() { 
     return this.tcpPort; 

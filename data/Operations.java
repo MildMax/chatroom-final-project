@@ -1,8 +1,7 @@
 package data;
 
 /**
- * enum for different type of operations for user.
- *
+ * Defines types of operations to be carried out during 2 Phase Commit
  */
 public enum Operations {
 

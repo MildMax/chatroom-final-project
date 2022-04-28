@@ -16,9 +16,8 @@ import util.ThreadSafeStringFormatter;
 
 /**
  * ChatRoomOperations of the server front which implements the IChatroomOperations
- * and is responsible for getting all the ifnormation related to the chatrooms
- * like deleting chat rooms, getting information about them and so on.
- *
+ * and is responsible for getting all the information related to the chatrooms at the
+ * local chat server
  */
 public class ChatroomOperations extends UnicastRemoteObject implements IChatroomOperations {
 
@@ -27,12 +26,12 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
   private final ServerInfo serverInfo;
 
   /**
-   * constructor of the ChatRoomOperations which initiatilzes the instances of server information
-   * room list and their locks accordinly.
-   * @param roomMap map of all the rooms
-   * @param roomMapLock locks on the rooms
-   * @param serverInfo information of the server
-   * @throws RemoteException handles exceptions of remote invocations
+   * Creates an instance of the ChatroomsOperations engine
+   *
+   * @param roomMap map containing the chatrooms and their names in the system
+   * @param roomMapLock locks the roomMap resource
+   * @param serverInfo provides port and addressing information for the server
+   * @throws RemoteException if there is an error during remote communication
    */
   public ChatroomOperations(Map<String, Chatroom> roomMap, 
       Object roomMapLock, ServerInfo serverInfo) throws RemoteException {
@@ -42,6 +41,13 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
     this.serverInfo = serverInfo;
   }
 
+  /**
+   * Creates a chatroom at the local chat server
+   *
+   * @param name name of the chatroom to create
+   * @return a response indicating whether the operation has succeeded or failed
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public Response createChatroom(String name) throws RemoteException {
 
@@ -78,6 +84,13 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
     return new Response(ResponseStatus.OK, "success");
   }
 
+  /**
+   * Deletes a chatroom from the local chat server
+   *
+   * @param name name of the chatroom to delete
+   * @return a response indicating whether the operation has succeeded or failed
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public Response deleteChatroom(String name) throws RemoteException {
 
@@ -100,6 +113,14 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
     return new Response(ResponseStatus.OK, "success");
   }
 
+  /**
+   * Provides information regarding the number of chatrooms and users hosted on the current
+   * chat server
+   *
+   * @return a response containing information regarding the number of chatrooms and users hosted on the
+   *         current chat server
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public ChatroomDataResponse getChatroomData() throws RemoteException {
 
@@ -123,6 +144,12 @@ public class ChatroomOperations extends UnicastRemoteObject implements IChatroom
         serverInfo.getHostname(), serverInfo.getRmiPort(), serverInfo.getTcpPort());
   }
 
+  /**
+   * Gets a list of names for chatrooms hosted at the local chat server
+   *
+   * @return a response containing a list of names for chatrooms hosted at the local chat server
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public ChatroomListResponse getChatrooms() throws RemoteException {
 

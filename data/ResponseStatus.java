@@ -1,8 +1,7 @@
 package data;
 
 /**
- * enum to represent sucess or failre reponse state.
- *
+ * Describes the possible statuses of an operation
  */
 
 public enum ResponseStatus {

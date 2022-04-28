@@ -19,9 +19,8 @@ import java.rmi.registry.Registry;
 import java.util.*;
 
 /**
- * dataserver initiator which acts as the driver class for the data server
- * application.
- *
+ * Initiator which acts as the driver class for the data server
+ * application
  */
 public class App {
 
@@ -31,7 +30,7 @@ public class App {
   private final Object channelMapLock;
 
   /**
-   * constructor of the class.
+   * Creates an instance of the data server App
    */
   public App() {
 
@@ -40,12 +39,13 @@ public class App {
     this.userMapLock = new Object();
     this.channelMapLock = new Object();
   }
+
   /**
-   * initiator with the server info which is required for the start of the 
-   * data server.
-   * @param serverInfo server information 
-   * @throws RemoteException handles remote object invocations
-   * @throws NotBoundException bounds exceptions
+   * Initiates the data server application
+   *
+   * @param serverInfo port and addressing information for central server and local data server
+   * @throws RemoteException if there is an error during remote communication
+   * @throws NotBoundException if there is an error locating an RMI registry
    */
 
   public void go(ServerInfo serverInfo) throws RemoteException, NotBoundException {
@@ -159,8 +159,9 @@ public class App {
   }
 
   /**
-   * driver method for the start of data server which accepts commandline
-   * arguments required for the application.
+   * Driver for the data server which accepts commandline
+   * arguments required to run the data server application.
+   *
    * @param args command line arguments
    */
   public static void main(String[] args) {
@@ -193,10 +194,11 @@ public class App {
   }
 
   /**
-   * server infor needed by the data server.
+   * Parses port and address information required to run the data server
+   *
    * @param args command line arguments
-   * @return server info
-   * @throws IllegalArgumentException invalid commandline arguments
+   * @return an object containing port and address information for local data server and central server
+   * @throws IllegalArgumentException if invalid commandline arguments are provided
    */
   public static ServerInfo parseCommandLineArguments(String[] args) 
       throws IllegalArgumentException {

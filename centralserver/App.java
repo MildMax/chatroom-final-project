@@ -17,8 +17,8 @@ import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
 /**
- * App class acts as the start point for the entire application, in a way it 
- * initiats all the entry ports, taking four  comandline arguments which
+ * App class acts as the start point for the entire application. It parses
+ * initiates all the entry ports, taking four command line arguments which
  * each represent different ports. In order to allow application follow the 
  * singleton principle only the instance created in this class is being forwarded 
  * for the entire application. Thus initializations made in this class are
@@ -35,11 +35,8 @@ public class App {
   private final Object dataNodeParticipantsLock;
 
   /**
-   * Constructor for App class which initiated objects for all the different
-   * nodes of the entire central server application. These initiated 
-   * instances are used further along in the ap[plication to follow
-   * synchronization across the application.
-   * 
+   * Constructor for App class which initiates objects for tracking chat server
+   * and data server nodes in the application
    */
   public App() {
     this.chatroomNodeLock = new Object();
@@ -51,11 +48,11 @@ public class App {
   }
 
   /**
-   * This method gives a headstart to the application by using the initiated
-   * instances of every node, it creates an instance for central operation
-   * Registry. It also handles the local thread to perform node cleanup
+   * This method starts the central operations server. It also handles the local thread to perform node cleanup
    * which utilizes timer.
-   * It is responsiblr for starting the registry for data, chatroom, client
+   *
+   * It is responsible for starting the registry for data servers, chatroom servers, clients
+   *
    * @param serverInfo information required to run the Central Server
    * @throws RemoteException if there is an error generating RMI interfaces
    */
@@ -124,8 +121,9 @@ public class App {
    * This method accepts the commandline arguments  
    * such as register port, chatroom port, user port, coordinator port
    * respectively.
+   *
    * @param args the commandline arguments which are necessary for starting 
-   *the application.
+   * the application.
    */
   public static void main(String[] args) {
 
@@ -155,10 +153,11 @@ public class App {
 
   /**
    * This method is responsible for parsing the given commandline arguments.
-   * and validating them before using and assigning to speciific uses which
-   * they are intented for registerPort, chatroomPort, userPort, coordinatorPort
+   * and validating them before using and assigning to specific uses which
+   * they are intended for registerPort, chatroomPort, userPort, coordinatorPort
+   *
    * @param args commandline arguments taken in order to run the application.
-   * @return the new validated port numbers.
+   * @return the new validated port numbers in Server Info object
    * @throws IllegalArgumentException if any of the input is invalid
    */
 

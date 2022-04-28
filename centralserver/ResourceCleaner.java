@@ -13,11 +13,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * 
- * Respource cleaner class which implements runnable is responsible for.
- * cleaning all the resources like unused chatrooms, unused chatroomNodes
- * having such mechanisms helps pertaining a more valuable data across the 
- * system.
+ * Resource cleaner is responsible for removing inactive chat servers and data servers
+ * from the system. Runs parallel to the main application.
  */
 public class ResourceCleaner implements Runnable {
 
@@ -28,20 +25,16 @@ public class ResourceCleaner implements Runnable {
   private final List<RMIAccess<IDataParticipant>> dataNodesParticipants;
   private final Object dataNodeParticipantsLock;
 
-  // const message for existing chatrooms -- used during re-establish connection
-  private static final String EXISTING_CHATROOM_MESSAGE = 
-      "A chatroom with this name already exists";
-
   /**
-   * constructor of resourceCleaner initiating all the objects to maintain
-   * singleton principle of the design pattterns.
-   * @param chatroomNodes list of all chatroomNodes.
-   * @param chatroomNodeLock lock on each node.
-   * @param dataNodesOperations opperations on each datanode.
-   * @param dataNodeOperationsLock lock on operations 
-   * @param dataNodesParticipants list of participants 
-   * @param dataNodeParticipantsLock locks on participants
-   * @throws RemoteException handles remote exceptions incurred.
+   * Creates an instance of the ResourceCleaner
+   *
+   * @param chatroomNodes list of all chat server interfaces in the system
+   * @param chatroomNodeLock locks operations on chatroomNodes resource
+   * @param dataNodesOperations list of data server operations interfaces in the system
+   * @param dataNodeOperationsLock locks operations on the dataNodesOperations resource
+   * @param dataNodesParticipants list of data server participant interfaces in the system
+   * @param dataNodeParticipantsLock locks operations on the dataNodesParticipants resource
+   * @throws RemoteException if there is an error during remote communication
    */
   public ResourceCleaner(List<RMIAccess<IChatroomOperations>> chatroomNodes,
       Object chatroomNodeLock,
@@ -57,6 +50,9 @@ public class ResourceCleaner implements Runnable {
     this.dataNodeParticipantsLock = dataNodeParticipantsLock;
   }
 
+  /**
+   * Initiates the resource cleaner thread.
+   */
   @Override
   public void run() {
 
@@ -79,8 +75,7 @@ public class ResourceCleaner implements Runnable {
   }
 
   /**
-   * cleanChatRoomNodes method is responsible for cleaning the unused chatroomnodes
-   * this helpes in maintaining a more transparent system.
+   * Cleans up unavailable chat server nodes in the system
    */
   public void cleanChatroomNodes() {
     Logger.writeMessageToLog("Cleaning unavailable chatroom nodes...");
@@ -111,9 +106,7 @@ public class ResourceCleaner implements Runnable {
   }
 
   /**
-   * This method cleanDataNodes is responsible for cleaning all the 
-   * unavailable data nodes there by increaing the efficiency of every node
-   * and maintaining transparency across the application.
+   * Cleans up unavailable data server nodes in the system
    */
   public void cleanDataNodes() {
     Logger.writeMessageToLog("Cleaning unavailable data nodes...");

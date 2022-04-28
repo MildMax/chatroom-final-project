@@ -15,11 +15,11 @@ import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
 /**
- * CentralCoordinator class which implements ICentralCoordinator interface.
+ * CentralCoordinator class which implements ICentralCoordinator interface,
  * which is responsible for setting coordinator decision for a transaction
  * removing coordinator decision for a transaction, getting decision for 
- * a transaction , waiting and commiting a transaction, checking is the 
- * transaction is commited by all the oparticipants
+ * a transaction , waiting and committing a transaction, checking is the
+ * transaction is committed by all the participants.
  */
 public class CentralCoordinator extends 
     UnicastRemoteObject implements ICentralCoordinator {
@@ -30,7 +30,8 @@ public class CentralCoordinator extends
 
   /**
    * Constructor of CentralCoordinator which is used to initiate object instances
-   * such that the class maintains the singletone principle design pattern./
+   * for tracking transactions and commits
+   *
    * @throws RemoteException handles remote exception on initializing several objects.
    */
   public CentralCoordinator() throws RemoteException {
@@ -40,8 +41,8 @@ public class CentralCoordinator extends
   }
 
   /**
-   * Sets the Coordinator decision when ever a transaction is being carried out
-   * and logs the respective message to the logger maintaining transparency.
+   * Sets the Coordinator decision when ever a transaction is being carried out.
+   *
    * @param t transaction Coordinator sets decision on
    * @param coordinatorDecision the decision of the coordinator for the transaction 
    * (YES for doCommit, NO for doAbort, NA for no decision)
@@ -72,10 +73,10 @@ public class CentralCoordinator extends
   }
 
   /**
-   * In order to maintain synchronixation among all participants.
-   * it is necessary to know if all the participants have commited their transaction
-   * and hence this method haveCommited checks if the transaction is commited by
-   * all the participants
+   * Allows participants to indicate that they have committed on a transaction
+   *
+   * @param t the transaction that has been committed
+   * @param p the participant that committed the transaction
    */
   @Override
   public void haveCommitted(Transaction t, RMIAccess<IDataParticipant> p) throws RemoteException {
@@ -117,7 +118,9 @@ public class CentralCoordinator extends
   }
 
   /**
-   * returns the transaction decision for the given transaction.
+   * Returns the transaction decision for the given transaction to a participant
+   *
+   * @param t the transaction to retrieve the decision for
    */
   @Override
   public Ack getDecision(Transaction t) throws RemoteException {
@@ -130,11 +133,12 @@ public class CentralCoordinator extends
   }
 
   /**
-   * Adds a wait object and a transaction id to maps for 2pc.
+   * Adds a wait object and a transaction id to maps during 2pc.
    * This method plays a prominent role in identifying every transaction 
-   * with its unique id.
-   * @param t Transaction
-   * @param waitObject Wait object
+   * with its unique id and how many participants should commit the transaction
+   *
+   * @param t the transaction to commit
+   * @param waitObject the wait object used to notify the coordinator the transaction has completed
    */
   public void addWaitCommit(Transaction t, Object waitObject) {
     int transactionId = t.getTransactionIndex();

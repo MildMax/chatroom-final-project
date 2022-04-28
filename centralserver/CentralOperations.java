@@ -17,8 +17,8 @@ import util.ThreadSafeStringFormatter;
 
 /**
  * CentralOperations class implements the ICentralOperations interface and.
- * is m,ainly responsible for registering the chatroom nodes and chatnodes 
- * for those chatrooms and to log the time.
+ * is mainly responsible for registering the chatroom nodes and data nodes
+ * and to provide the master time for Cristian's algorithm.
  *
  */
 public class CentralOperations extends UnicastRemoteObject implements ICentralOperations {
@@ -32,8 +32,8 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
   private final ServerInfo serverInfo;
 
   /**
-   * Constructor opf CentralOperations which accepts list of chatroomNodes. 
-   * object of chatroomNodelock, list of data nodes operations, object of datanodes participants
+   * Constructor for CentralOperations
+   *
    * @param chatroomNodes list of all chatroomnodes.
    * @param chatroomNodeLock locks on individual chatroomnode.
    * @param dataNodesOperations operations on datanodes.
@@ -59,6 +59,17 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
     this.serverInfo = serverInfo;
   }
 
+  /**
+   * Registers a data node with the central server application. Spins up existing chatrooms tracked
+   * by the data node prior to the application previously shutting down.
+   *
+   * @param hostname hostname for the machine supporting the data server
+   * @param dataOperationsPort port where data node is accepting operations requests
+   * @param dataParticipantPort port where data node is accepting participant requests in 2 phase commmit
+   * @param chatrooms list of chat rooms previously recorded in the data server
+   * @return a response containing the central server Coordinator port for 2 phase commit
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public RegisterResponse registerDataNode(String hostname, 
       int dataOperationsPort, int dataParticipantPort, 
@@ -108,6 +119,14 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
     return new RegisterResponse(serverInfo.getCoordinatorPort());
   }
 
+  /**
+   * Registers a chat server node with the central server application
+   *
+   * @param hostname hostname of the machine supporting the chat server
+   * @param port port where chat server is accepting operations requests from central server
+   * @return a response containing port for chatroom operations registry at the central server
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public RegisterResponse registerChatNode(String hostname, int port) throws RemoteException {
 
@@ -126,6 +145,12 @@ public class CentralOperations extends UnicastRemoteObject implements ICentralOp
     return new RegisterResponse(serverInfo.getChatroomPort());
   }
 
+  /**
+   * Gets the master server time for Cristian's Algorithm
+   *
+   * @return the master server time in milliseconds
+   * @throws RemoteException if there is an error during remote communication
+   */
   @Override
   public long getServerTime() throws RemoteException {
 

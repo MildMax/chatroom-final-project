@@ -9,25 +9,23 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
 /**
- * RMIAcess class which implements serialiation interface is responsible for 
- * checking acess permissions.
+ * Provides access to a remote RMI interface
  *
- * @param <K> type of class which invokes this class
+ * @param <K> type of interface at the remote RMI implementation
  */
 public class RMIAccess<K> implements Serializable {
 
   private String interfaceName;
   private String hostname;
   private int port;
-  /**
-   * constructor of rmi access which accepts the hostname and interface name 
-   * as paremters and initates object in order to maintain singleton design
-   * pattern.
-   * @param hostname name of the host
-   * @param port port number
-   * @param interfaceName name of the interface 
-   */
 
+  /**
+   * Creates an instance of the RMI accessor
+   *
+   * @param hostname hostname of the machine supporting the RMI interface
+   * @param port the port the RMI interface is accepting requests on
+   * @param interfaceName name of the interface at the remote RMI implementation
+   */
   public RMIAccess(String hostname, int port, String interfaceName) {
     this.hostname = hostname;
     this.port = port;
@@ -35,10 +33,11 @@ public class RMIAccess<K> implements Serializable {
   }
 
   /**
-   * checks if the invoking object can get access.
-   * @return the access to the invoked object
-   * @throws RemoteException handles remote object invocations
-   * @throws NotBoundException  handles bounds exceptions.
+   * Gets the accessor for the remote RMI interface
+   *
+   * @return the accessor for the remote RMI interface
+   * @throws RemoteException if there is an error contacting the remote RMI interface
+   * @throws NotBoundException if the remote RMI interface cannot be located
    */
   public K getAccess() throws RemoteException, NotBoundException {
     K access;
@@ -69,10 +68,20 @@ public class RMIAccess<K> implements Serializable {
     return access;
   }
 
+  /**
+   * The host address that supports the remote RMI interface
+   *
+   * @return the host address that supports the remote RMI interface
+   */
   public String getHostname() {
     return this.hostname;
   }
 
+  /**
+   * Returns the port the remote RMI interface is accepting connections on
+   *
+   * @return the port the remote RMI interface is accepting connections on
+   */
   public int getPort() {
     return this.port;
   }

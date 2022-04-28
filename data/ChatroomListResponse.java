@@ -4,8 +4,7 @@ import java.io.Serializable;
 import java.util.List;
 
 /**
- * chatroomListResponses is used to get list of all chatroom names.
- *
+ * An object containing a list of the names of available chatrooms in the system
  */
 
 public class ChatroomListResponse implements Serializable {
@@ -13,15 +12,17 @@ public class ChatroomListResponse implements Serializable {
   private final List<String> chatroomNames;
 
   /**
-   * list of chat room names
-   * @param chatroomNames list of chat room names
+   * Creates an instance of the ChatroomListResponse object
+   *
+   * @param chatroomNames list of names of chatrooms in the system
    */
   public ChatroomListResponse(List<String> chatroomNames) {
     this.chatroomNames = chatroomNames;
   }
 
   /**
-   * current list of chat room names
+   * Gets the list of chatroom names in the system
+   *
    * @return current list of chat room names
    */
   public List<String> getChatroomNames() { 

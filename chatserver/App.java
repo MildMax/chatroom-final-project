@@ -18,27 +18,27 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * App is the initator class for the server functionality which is responsible for 
- * starting the server side implementation of this entire application.
- *
+ * Initiates the chat server
  */
 public class App {
 
   private final Map<String, Chatroom> roomMap;
   private final Object roomMapLock;
 
+  /**
+   * Creates an instance of the chat server App object
+   */
   public App() {
     this.roomMap = Collections.synchronizedMap(new HashMap<>());
     this.roomMapLock = new Object();
   }
 
   /**
-   * this methos is resposnible for the starting the app with necessary access
-   * permissions and start of the server threads and is considered the 
-   * initiator of the server process through out the application.
-   * @param serverInfo information about several ports
-   * @throws RemoteException handles exception on accessing remote objects
-   * @throws NotBoundException handling comandline argument exceptions
+   * Starts the chat server
+   *
+   * @param serverInfo information about RMI registry ports
+   * @throws RemoteException if there is an error setting up RMI registries
+   * @throws NotBoundException if there is an error contacting RMI registries
    */
   public void go(ServerInfo serverInfo) throws RemoteException, NotBoundException {
 
@@ -88,7 +88,9 @@ public class App {
 
   /**
    * This is the driver main class to start the server program which accepts
-   * 7 specific values which are mapped to several server port numbers.
+   * 7 specific values which are mapped to several server port numbers and host addresses
+   * of components in the system
+   *
    * @param args commandline arguments which are necessary to run the server
    */
   public static void main(String[] args) {
@@ -117,13 +119,13 @@ public class App {
   }
 
   /**
-   * parseCommandLineArgs method is used to parse the commandline arguments.
-   * values for the several ports like  centralServerPort, tcpPort, rmiPort
-   * operations port and so on.
+   * Parses the commandline arguments values for the the centralServerPort, tcpPort, rmiPort
+   * operations port as well as host address information for the local chat server and the
+   * central server host
+   *
    * @param args commandline arguments 
-   * @return returns the validated ports 
+   * @return returns the validated ports and host addresses
    */
-  
   public static ServerInfo parseCommandLineArgs(String[] args) {
 
     if (args.length != 7) {
@@ -180,7 +182,4 @@ public class App {
     return new ServerInfo(args[0], args[1], 
         centralServerPort, args[3], tcpPort, rmiPort, operationsPort);
   }
-
-
-
 }

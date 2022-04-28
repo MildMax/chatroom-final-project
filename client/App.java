@@ -13,19 +13,18 @@ import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
 /**
- * App is the initiator class for the client application which is resposible for.
- * client information and initiating the client application
+ * Initializes the client application
  */
 public class App {
 
   public App(){}
 
   /**
-   * initiates the client with the serverinfo which was obtained on inititating
-   * the server application.
-   * @param serverInfo server port info
+   * Initiates the client using the provided ServerInfo object. Runs the client application.
+   *
+   * @param serverInfo provides server port and addressing information
    * @throws RemoteException  exceptions on invoking remote objects
-   * @throws NotBoundException handling null commandline arguments 
+   * @throws NotBoundException if there is an error locating RMI registries
    */
   public void go(ServerInfo serverInfo) throws RemoteException, NotBoundException {
 
@@ -395,8 +394,9 @@ public class App {
   }
 
   /**
-   * main method for the driver class which accepts the command line.
-   * arguments required.
+   * main method for the driver class which accepts the command line
+   * arguments required to run the client
+   *
    * @param args commandline arguments
    */
   public static void main(String[] args) {
@@ -425,11 +425,11 @@ public class App {
 
 
   /**
-   * helper command to parse commandline arguments requiered to start the
-   * application.
+   * Parses command line arguments into address and port information for the central server
+   *
    * @param args commandline arguments
-   * @return client information 
-   * @throws IllegalArgumentException incase of invalid arguments 
+   * @return ServerInfo object containing port and address information
+   * @throws IllegalArgumentException in case of invalid arguments
    */
 
   public static ServerInfo parseCommandLineArgs(String[] args) 

@@ -8,8 +8,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 /**
- * Manages writing events to server logs so as to maintain fault tolerance and
- * these loggers play a very prominent role in identifying the faults.
+ * Manages writing events to server logs
  */
 public abstract class Logger {
 

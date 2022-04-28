@@ -1,9 +1,8 @@
 package client;
 
 /**
- * Serverinfo class which holds the necessary information required by the 
- * client.
- *
+ * Serverinfo class which holds the necessary port and addressing information for
+ * the central server
  */
 public class ServerInfo {
 
@@ -12,10 +11,11 @@ public class ServerInfo {
   private final boolean isTest;
 
   /**
-   * server infor which is needed for the client.
-   * @param centralHost host name
-   * @param centralPort port number
-   * @param isTest  boolean flag
+   * Creates an instance of the ServerInfo object
+   *
+   * @param centralHost hostname of the machine supporting the central server
+   * @param centralPort port the central server is accepting client requests on
+   * @param isTest indicates if the client should run its local test file
    */
   public ServerInfo(String centralHost, int centralPort, boolean isTest) {
     this.centralHost = centralHost;

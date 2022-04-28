@@ -14,14 +14,10 @@ import util.Logger;
 import util.RMIAccess;
 import util.ThreadSafeStringFormatter;
 
-
-
-
 /**
- * CentralChatroomOperations class acts as a initiator for all the operations
- * which are performed in a chatroom. Using two phase commit for logging the 
- * mesages from the central chat room.
- *
+ * CentralChatroomOperations class acts as a initiator central server
+ * operations pertaining to existing chatrooms. Uses two phase commit for logging the
+ * messages from the central chat room.
  */
 public class CentralChatroomOperations extends 
     UnicastRemoteObject implements ICentralChatroomOperations {
@@ -34,9 +30,10 @@ public class CentralChatroomOperations extends
    * Constructor for CentralChatroomOperations class which accepts the paremeters
    * for participants list, locks of participants data, coordinator object along
    * side handling the remote exceptions.
-   * @param dataNodesParticipants list of participants of datanodes.
+   *
+   * @param dataNodesParticipants list of participants of data nodes.
    * @param dataNodeParticipantsLock locks on the given dataNodeParticipants list.
-   * @param coordinator coordinator of all the datanodees.
+   * @param coordinator central server coordinator for all the data nodes.
    * @throws RemoteException handles any exception cause by the remote access of these nodes.
    */
   public CentralChatroomOperations(List<RMIAccess<IDataParticipant>> 
@@ -49,10 +46,12 @@ public class CentralChatroomOperations extends
   }
 
   /**
-   * logChatMessage is a method which is being overriden from ICentralCharoomOperations
-   * interface. This accepts chatroom identifier as a parameter and the message 
-   * which is being sent to the respective chatroom and using two phase commit it
-   * is being logged.
+   * Logs a chatroom message to available data servers in the system using 2pc
+   *
+   * @param chatroom name of the chat room the message was sent to
+   * @param message the message to be logged
+   * @return a response indicating whether the operation succeeded or not
+   * @throws RemoteException if there is an error during remote communication
    */
   @Override
   public Response logChatMessage(String chatroom, String message) throws RemoteException {
