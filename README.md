@@ -3,6 +3,10 @@ Final project for CS6650: A Chatroom Application
 
 Joseph Burns, Daniel Levin, Hephzibah Saidu, Rodolph Mesadieu
 
+Our final project demo video can be found at the following link:
+
+https://www.youtube.com/watch?v=x2_b2roWxU4
+
 ## Starting the Application
 
 To start our application, the following components should be started in the order provided. Once the application
