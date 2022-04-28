@@ -2,15 +2,27 @@ package data;
 
 import java.io.Serializable;
 
+/**
+ * register response for the centralized application.
+ *
+ */
 public class RegisterResponse implements Serializable {
 
-    private int port;
+  private int port;
 
-    public RegisterResponse(int port) {
-        this.port = port;
-    }
+  /**
+   * port number of the register.
+   * @param port port number
+   */
+  public RegisterResponse(int port) {
+    this.port = port;
+  }
 
-    public int getPort() {
-        return port;
-    }
+  /**
+   * to obtain current port number.
+   * @return the current port number
+   */
+  public int getPort() {
+    return port;
+  }
 }

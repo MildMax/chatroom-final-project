@@ -3,10 +3,17 @@ package data;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
-// data node -> centralized server
-// chat node -> centralized server
 
+/**
+ * centralized initiation of server log.
+ *
+ */
 public interface ICristiansOperation extends Remote {
 
-    long getServerTime() throws RemoteException;
+  /**
+   * the current server time.
+   * @return the current server time.
+   * @throws RemoteException  handles remote object invocations.
+   */
+  long getServerTime() throws RemoteException;
 }

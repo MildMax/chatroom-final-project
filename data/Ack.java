@@ -1,7 +1,7 @@
 package data;
 
 /**
- * Defines the type of acknowledgements a coordinator may receive during 2 Phase Commit
+ * Defines the type of acknowledgements a coordinator may receive during 2 Phase Commit.
  */
 public enum Ack {
 
